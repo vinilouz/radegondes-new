@@ -2,11 +2,14 @@ import { authClient } from "@/lib/auth-client";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import z from "zod";
 import Loader from "./loader";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Card } from "./ui/card";
 
 export default function SignUpForm({
 	onSwitchToSignIn,
@@ -17,6 +20,7 @@ export default function SignUpForm({
 		from: "/",
 	});
 	const { isPending } = authClient.useSession();
+	const [showPassword, setShowPassword] = useState(false);
 
 	const form = useForm({
 		defaultValues: {
@@ -58,8 +62,11 @@ export default function SignUpForm({
 	}
 
 	return (
-		<div className="mx-auto w-full mt-10 max-w-md p-6">
-			<h1 className="mb-6 text-center text-3xl font-bold">Create Account</h1>
+		<div className="min-h-screen flex items-center justify-center p-4 bg-[url('/form-bg.png')] bg-cover bg-center bg-fixed">
+			<Card className="w-full max-w-lg p-10 shadow-lg gap-0 border-0 bg-card/75 backdrop-blur-[15px]">
+				<h1 className="mb-8 text-center text-2xl font-bold text-foreground">
+					Cadastro
+				</h1>
 
 			<form
 				onSubmit={(e) => {
@@ -73,13 +80,14 @@ export default function SignUpForm({
 					<form.Field name="name">
 						{(field) => (
 							<div className="space-y-2">
-								<Label htmlFor={field.name}>Name</Label>
+								<Label htmlFor={field.name}>Nome</Label>
 								<Input
 									id={field.name}
 									name={field.name}
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
+									className="border-primary/20"
 								/>
 								{field.state.meta.errors.map((error) => (
 									<p key={error?.message} className="text-red-500">
@@ -103,6 +111,7 @@ export default function SignUpForm({
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
+									className="border-primary/20"
 								/>
 								{field.state.meta.errors.map((error) => (
 									<p key={error?.message} className="text-red-500">
@@ -118,15 +127,29 @@ export default function SignUpForm({
 					<form.Field name="password">
 						{(field) => (
 							<div className="space-y-2">
-								<Label htmlFor={field.name}>Password</Label>
-								<Input
-									id={field.name}
-									name={field.name}
-									type="password"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
+								<Label htmlFor={field.name}>Senha</Label>
+								<div className="relative">
+									<Input
+										id={field.name}
+										name={field.name}
+										type={showPassword ? "text" : "password"}
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+										className="border-primary/20"
+									/>
+									<button
+										type="button"
+										onClick={() => setShowPassword(!showPassword)}
+										className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+									>
+										{showPassword ? (
+											<EyeOff className="h-4 w-4" />
+										) : (
+											<Eye className="h-4 w-4" />
+										)}
+									</button>
+								</div>
 								{field.state.meta.errors.map((error) => (
 									<p key={error?.message} className="text-red-500">
 										{error?.message}
@@ -144,21 +167,25 @@ export default function SignUpForm({
 							className="w-full"
 							disabled={!state.canSubmit || state.isSubmitting}
 						>
-							{state.isSubmitting ? "Submitting..." : "Sign Up"}
+							{state.isSubmitting ? "Criando conta..." : "Cadastrar"}
 						</Button>
 					)}
 				</form.Subscribe>
 			</form>
 
-			<div className="mt-4 text-center">
-				<Button
-					variant="link"
-					onClick={onSwitchToSignIn}
-					className="text-indigo-600 hover:text-indigo-800"
-				>
-					Already have an account? Sign In
-				</Button>
+			<div className="mt-6 text-center pt-4 border-t border-current/15">
+				<p className="text-foreground/60 text-sm">
+					Já tem uma conta?{" "}
+					<Button
+						variant="link"
+						onClick={onSwitchToSignIn}
+						className="p-0 h-auto text-primary hover:text-primary/80 font-normal"
+					>
+						Faça login aqui
+					</Button>
+				</p>
 			</div>
+			</Card>
 		</div>
 	);
 }
