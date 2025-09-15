@@ -34,7 +34,7 @@ function Planos() {
       const response = await fetch(`${API_BASE_URL}/api/planos`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPlanos(data);
@@ -92,7 +92,7 @@ function Planos() {
   const removerPlano = async (planoId, event) => {
     event.preventDefault();
     event.stopPropagation();
-    
+
     if (confirm('Tem certeza que deseja remover este estudo? Esta ação não pode ser desfeita.')) {
       try {
         const response = await fetch(`${API_BASE_URL}/api/planos/${planoId}`, {
@@ -123,7 +123,7 @@ function Planos() {
 
   // Funções de Drag and Drop
   const handleDragStart = (e, plano) => {
-    e.preventDefault = () => {}; // Previne navegação
+    e.preventDefault = () => { }; // Previne navegação
     setDraggedItem(plano);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.target);
@@ -143,7 +143,7 @@ function Planos() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-    
+
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       setDragOverItem(null);
     }
@@ -151,7 +151,7 @@ function Planos() {
 
   const handleDrop = async (e, targetPlano) => {
     e.preventDefault();
-    
+
     if (!draggedItem || draggedItem['_id'] === targetPlano['_id']) {
       setDraggedItem(null);
       setDragOverItem(null);
@@ -163,13 +163,13 @@ function Planos() {
       const currentOrder = [...planos];
       const draggedIndex = currentOrder.findIndex(p => p['_id'] === draggedItem['_id']);
       const targetIndex = currentOrder.findIndex(p => p['_id'] === targetPlano['_id']);
-      
+
       // Remove o item arrastado da posição original
       const [draggedPlan] = currentOrder.splice(draggedIndex, 1);
-      
+
       // Insere na nova posição
       currentOrder.splice(targetIndex, 0, draggedPlan);
-      
+
       // Criar array com novas posições para enviar ao backend
       const reorderData = currentOrder.map((plano, index) => ({
         id: plano['_id'],
@@ -198,7 +198,7 @@ function Planos() {
       console.error('Erro ao reordenar planos:', error);
       alert('Erro de conexão. Verifique sua internet e tente novamente.');
     }
-    
+
     setDraggedItem(null);
     setDragOverItem(null);
   };
@@ -230,29 +230,11 @@ function Planos() {
 
       {/* Botões de criação */}
       <div className="new-items-container">
-        {/* <div className='new-item'>
-          <Link to="/planos/novo">
-            <div className="new-item-content">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="#E66912" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M14 2V8H20" stroke="#E66912" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M16 13H8" stroke="#E66912" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M16 17H8" stroke="#E66912" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M10 9H9H8" stroke="#E66912" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <div className="new-item-text">
-                <h5>Criar Novo Estudo</h5>
-                <p>Crie um novo estudo para adicionar disciplinas a partir de editais específicos.</p>
-              </div>
-            </div>
-          </Link>
-        </div> */}
-        
         <div className='new-item'>
           <div className="custom-plan-button" onClick={criarPlanoPersonalizado}>
             <div className="new-item-content">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="#E66912" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="#E66912" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <div className="new-item-text">
                 <h5>Criar Estudo Personalizado</h5>
@@ -491,22 +473,22 @@ function Planos() {
                 >
                   {/* Ellipsis Menu - Position Absolute */}
                   <div className="ellipsis-menu">
-                    <button 
+                    <button
                       className="ellipsis-button"
                       onClick={(e) => toggleDropdown(plano['_id'], e)}
                     >
                       <i className="fas fa-ellipsis-v"></i>
                     </button>
-                    
+
                     {activeDropdown === plano['_id'] && (
                       <div className="dropdown-menu">
-                        <button 
+                        <button
                           className="dropdown-item"
                           onClick={(e) => removerPlano(plano['_id'], e)}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                           Remover
                         </button>
@@ -536,7 +518,7 @@ function Planos() {
                         Disciplinas
                       </div>
                     </div>
-                    
+
                     <div className="study-stat">
                       <div className="study-stat-value">
                         {plano['topicos'] || 0}

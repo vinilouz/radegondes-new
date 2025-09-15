@@ -36,7 +36,7 @@ export default function SignInForm({
         {
           onSuccess: () => {
             navigate({
-              to: "/dashboard",
+              to: "/planos",
             });
             toast.success("Sign in successful");
           },

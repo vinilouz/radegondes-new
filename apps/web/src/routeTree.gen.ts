@@ -11,7 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProtectedPlanosRouteImport } from './routes/_protected/planos'
+import { Route as ProtectedModulesRouteImport } from './routes/_protected/modules'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -23,38 +26,67 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedRoute = ProtectedRouteImport.update({
+  id: '/_protected',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedPlanosRoute = ProtectedPlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedModulesRoute = ProtectedModulesRouteImport.update({
+  id: '/modules',
+  path: '/modules',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/modules': typeof ProtectedModulesRoute
+  '/planos': typeof ProtectedPlanosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/modules': typeof ProtectedModulesRoute
+  '/planos': typeof ProtectedPlanosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_protected': typeof ProtectedRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/_protected/modules': typeof ProtectedModulesRoute
+  '/_protected/planos': typeof ProtectedPlanosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login'
+  fullPaths: '/' | '/dashboard' | '/login' | '/modules' | '/planos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login'
-  id: '__root__' | '/' | '/dashboard' | '/login'
+  to: '/' | '/dashboard' | '/login' | '/modules' | '/planos'
+  id:
+    | '__root__'
+    | '/'
+    | '/_protected'
+    | '/dashboard'
+    | '/login'
+    | '/_protected/modules'
+    | '/_protected/planos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ProtectedRoute: typeof ProtectedRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
 }
@@ -75,6 +107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected': {
+      id: '/_protected'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof ProtectedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -82,11 +121,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/planos': {
+      id: '/_protected/planos'
+      path: '/planos'
+      fullPath: '/planos'
+      preLoaderRoute: typeof ProtectedPlanosRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/modules': {
+      id: '/_protected/modules'
+      path: '/modules'
+      fullPath: '/modules'
+      preLoaderRoute: typeof ProtectedModulesRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
   }
 }
 
+interface ProtectedRouteChildren {
+  ProtectedModulesRoute: typeof ProtectedModulesRoute
+  ProtectedPlanosRoute: typeof ProtectedPlanosRoute
+}
+
+const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedModulesRoute: ProtectedModulesRoute,
+  ProtectedPlanosRoute: ProtectedPlanosRoute,
+}
+
+const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
+  ProtectedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ProtectedRoute: ProtectedRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
 }
