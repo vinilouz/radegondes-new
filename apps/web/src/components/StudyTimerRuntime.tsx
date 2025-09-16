@@ -1,10 +1,11 @@
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { studyTimerStore, timerActions, selectors } from '@/store/studyTimerStore'
 import { useStore } from '@tanstack/react-store'
 import { trpcClient } from '@/utils/trpc'
+import { useRouterState } from '@tanstack/react-router'
 
-const AUTOSAVE_INTERVAL = 20_000
+const AUTOSAVE_INTERVAL = 1_000
 const CHANNEL_NAME = 'study_timer_v1'
 
 export function StudyTimerRuntime() {
@@ -13,6 +14,53 @@ export function StudyTimerRuntime() {
   const autosaveAccumRef = useRef(0)
   const bcRef = useRef<BroadcastChannel | null>(null)
   const pendingHeartbeatsRef = useRef<Array<{ sessionId: string; deltaMs: number; reason: string }>>([])
+
+  // Restaura sessão ao inicializar
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const restored = await timerActions.restoreSession(trpcClient)
+        if (restored) {
+          console.log('Timer session restored successfully')
+        }
+      } catch (e) {
+        console.warn('Failed to restore timer session:', e)
+      }
+    }
+
+    restoreSession()
+  }, [])
+
+  // Monitora mudanças de rota para forçar salvamento
+  const currentPath = useRouterState({
+    select: (s) => s.location.pathname,
+  })
+
+  // Força salvamento ao alterar rota (apenas uma vez por mudança)
+  const lastPathRef = useRef<string>('')
+  useEffect(() => {
+    // Evita múltiplas execuções para mesma rota
+    if (!activeSession || currentPath === lastPathRef.current) return
+
+    lastPathRef.current = currentPath
+
+    // Só salva se tiver tempo acumulado no acumulador
+    if (autosaveAccumRef.current <= 100) return // mínimo 100ms
+
+    const deltaToSend = Math.round(autosaveAccumRef.current) // SEMPRE integer
+
+    console.log('Route change detected - saving accumulated time:', deltaToSend, 'ms')
+
+    // Salvamento simples usando apenas o acumulador
+    void timerActions.heartbeat(deltaToSend, trpcClient)
+      .then(() => {
+        console.log('Timer saved on route change')
+        autosaveAccumRef.current = 0
+      })
+      .catch((e) => {
+        console.warn('Failed to save timer on route change:', e)
+      })
+  }, [currentPath, activeSession])
 
   // BroadcastChannel para coordenar multiabas
   useEffect(() => {
@@ -42,9 +90,9 @@ export function StudyTimerRuntime() {
       timerActions.tick(delta)
       autosaveAccumRef.current += delta
 
-      // Autosave a cada 20s
+      // Autosave a cada 1s
       if (autosaveAccumRef.current >= AUTOSAVE_INTERVAL) {
-        void timerActions.heartbeat(Math.floor(autosaveAccumRef.current), trpcClient)
+        void timerActions.heartbeat(Math.round(autosaveAccumRef.current), trpcClient) // SEMPRE integer
         autosaveAccumRef.current = 0
       }
     }, 1000)
@@ -90,24 +138,25 @@ export function StudyTimerRuntime() {
   function flushBeacon(reason: string) {
     if (!activeSession || autosaveAccumRef.current <= 0) return
 
-    const delta = Math.floor(autosaveAccumRef.current)
-    const payload = { sessionId: activeSession.sessionId, deltaMs: delta, reason }
-    const url = `${import.meta.env.VITE_SERVER_URL}/trpc/timer.heartbeat`
+    const deltaToSend = Math.round(autosaveAccumRef.current) // SEMPRE integer
 
-    const success = navigator.sendBeacon?.(
-      url,
-      new Blob([JSON.stringify(payload)], { type: 'application/json' })
-    )
+    console.log(`${reason} - flushing accumulated time:`, deltaToSend, 'ms')
 
-    if (!success) {
-      // Adiciona à lista de pendentes se beacon falhar
-      pendingHeartbeatsRef.current.push(payload)
+    // Tenta heartbeat via tRPC
+    void timerActions.heartbeat(deltaToSend, trpcClient)
+      .catch(() => {
+        // Se falhar, adiciona à lista de pendentes
+        pendingHeartbeatsRef.current.push({
+          sessionId: activeSession.sessionId,
+          deltaMs: deltaToSend,
+          reason: `${reason}_failed`
+        })
 
-      // Limpa pendentes antigos (máximo 10 pendentes)
-      if (pendingHeartbeatsRef.current.length > 10) {
-        pendingHeartbeatsRef.current = pendingHeartbeatsRef.current.slice(-10)
-      }
-    }
+        // Limpa pendentes antigos (máximo 3 pendentes)
+        if (pendingHeartbeatsRef.current.length > 3) {
+          pendingHeartbeatsRef.current = pendingHeartbeatsRef.current.slice(-3)
+        }
+      })
 
     autosaveAccumRef.current = 0
     lastTickRef.current = performance.now()

@@ -118,7 +118,7 @@ export const timerRouter = router({
         return cached.data;
       }
 
-      // Query otimizada com indexes
+      // Query incluindo sessões ativas (sem endTime) - CRÍTICO para não perder dados
       const totals = await db
         .select({
           topicId: timeSession.topicId,

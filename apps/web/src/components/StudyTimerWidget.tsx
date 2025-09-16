@@ -2,14 +2,30 @@
 import { useStore } from '@tanstack/react-store'
 import { studyTimerStore, selectors, timerActions } from '@/store/studyTimerStore'
 import { formatTime } from '@/lib/utils';
+import { useState } from 'react';
 
 export function StudyTimerWidget() {
   const activeSession = useStore(studyTimerStore, selectors.getActiveSession)
+  const [isStoppingSession, setIsStoppingSession] = useState(false)
 
   const totalMs = useStore(studyTimerStore, (state) => {
     if (!activeSession) return 0
     return selectors.getTopicTime(activeSession.topicId)(state)
   })
+
+  const handleStopSession = async () => {
+    if (isStoppingSession) return
+
+    setIsStoppingSession(true)
+    try {
+      await timerActions.stopSession()
+    } catch (error) {
+      console.error('Erro ao parar sessão:', error)
+      alert('Erro ao salvar dados do timer. Tente novamente.')
+    } finally {
+      setIsStoppingSession(false)
+    }
+  }
 
   if (!activeSession) return null
 
@@ -30,10 +46,11 @@ export function StudyTimerWidget() {
       </div>
 
       <button
-        onClick={() => timerActions.stopSession()}
-        className="mt-3 w-full bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm"
+        onClick={handleStopSession}
+        disabled={isStoppingSession}
+        className="mt-3 w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed px-3 py-1 rounded text-sm"
       >
-        Parar
+        {isStoppingSession ? 'Salvando...' : 'Parar'}
       </button>
     </div>
   )

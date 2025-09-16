@@ -45,12 +45,21 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
 
       if (topicIds.length > 0) {
         await timerActions.loadTotals(undefined, undefined, topicIds, trpcClient);
-        const time = selectors.getStudyTime(study.id, topicIds)(storeState);
-        setStudyTime(time);
       }
     };
 
     fetchTopics();
+  }, [study.id]);
+
+  useEffect(() => {
+    const topics = trpcClient.getTopics.query({ studyId: study.id });
+    topics.then((topicsData) => {
+      const topicIds = topicsData.map((topic: any) => topic.id);
+      if (topicIds.length > 0) {
+        const time = selectors.getStudyTime(study.id, topicIds)(storeState);
+        setStudyTime(time);
+      }
+    });
   }, [study.id, storeState]);
 
   return (

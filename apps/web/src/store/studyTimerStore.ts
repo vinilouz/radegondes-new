@@ -2,6 +2,8 @@
 import { Store } from '@tanstack/react-store'
 import { trpcClient } from '@/utils/trpc'
 
+const SESSION_STORAGE_KEY = 'active_study_session'
+
 export type ActiveSession = {
   topicId: string
   disciplineId: string
@@ -37,7 +39,92 @@ export const studyTimerStore = new Store<TimeData>({
   requestCache: new Map(),
 })
 
+// Funções auxiliares para persistência
+const saveSessionToStorage = (session: ActiveSession) => {
+  try {
+    const sessionData = {
+      ...session,
+      savedAt: Date.now(), // timestamp para calcular tempo offline
+    }
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData))
+  } catch (e) {
+    console.warn('Failed to save session to localStorage:', e)
+  }
+}
+
+const loadSessionFromStorage = (): (ActiveSession & { savedAt: number }) | null => {
+  try {
+    const stored = localStorage.getItem(SESSION_STORAGE_KEY)
+    if (!stored) return null
+    return JSON.parse(stored)
+  } catch (e) {
+    console.warn('Failed to load session from localStorage:', e)
+    return null
+  }
+}
+
+const clearSessionFromStorage = () => {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY)
+  } catch (e) {
+    console.warn('Failed to clear session from localStorage:', e)
+  }
+}
+
 export const timerActions = {
+  // Restaura sessão do localStorage se existir
+  async restoreSession(trpc: typeof trpcClient) {
+    const stored = loadSessionFromStorage()
+    if (!stored) return false
+
+    const timeSinceLastSave = Date.now() - stored.savedAt
+    const isRecent = timeSinceLastSave < 24 * 60 * 60 * 1000 // 24 horas
+
+    if (!isRecent) {
+      clearSessionFromStorage()
+      return false
+    }
+
+    // Reconstrói a sessão com o tempo acumulado
+    const now = performance.now()
+    const elapsedSinceLastSave = Math.min(Math.round(timeSinceLastSave), 60000) // máximo 1 minuto, SEMPRE integer
+
+    const restoredSession: ActiveSession = {
+      topicId: stored.topicId,
+      disciplineId: stored.disciplineId,
+      studyId: stored.studyId,
+      startedAt: now - stored.elapsedMs - elapsedSinceLastSave,
+      elapsedMs: stored.elapsedMs + elapsedSinceLastSave,
+      sessionId: stored.sessionId,
+    }
+
+    // Verifica se a sessão ainda existe no servidor
+    try {
+      if (elapsedSinceLastSave > 0) {
+        await trpc.timer.heartbeat.mutate({
+          sessionId: stored.sessionId,
+          deltaMs: elapsedSinceLastSave,
+        })
+      }
+
+      studyTimerStore.setState((s) => ({
+        ...s,
+        activeSession: restoredSession,
+      }))
+
+      console.log('Session restored from localStorage:', {
+        elapsedMs: restoredSession.elapsedMs,
+        timeSinceLastSave,
+      })
+
+      return true
+    } catch (e) {
+      console.warn('Stored session is invalid on server, clearing:', e)
+      clearSessionFromStorage()
+      return false
+    }
+  },
+
   // Inicia sessão de estudo
   async startSession(topicId: string, disciplineId: string, studyId: string, trpc: typeof trpcClient) {
     const cryptoObj = globalThis.crypto || window.crypto
@@ -46,17 +133,22 @@ export const timerActions = {
     // Criar sessão no backend
     await trpc.timer.startSession.mutate({ sessionId, topicId })
 
+    const newSession: ActiveSession = {
+      topicId,
+      disciplineId,
+      studyId,
+      startedAt: performance.now(),
+      elapsedMs: 0,
+      sessionId,
+    }
+
     studyTimerStore.setState((s) => ({
       ...s,
-      activeSession: {
-        topicId,
-        disciplineId,
-        studyId,
-        startedAt: performance.now(),
-        elapsedMs: 0,
-        sessionId,
-      },
+      activeSession: newSession,
     }))
+
+    // Salva no localStorage
+    saveSessionToStorage(newSession)
   },
 
   // Para sessão e persiste
@@ -64,7 +156,22 @@ export const timerActions = {
     const session = studyTimerStore.state.activeSession
     if (!session) return
 
-    const finalDuration = Math.floor(session.elapsedMs)
+    // Usa apenas o elapsedMs já calculado (mais confiável)
+    const finalDuration = Math.round(session.elapsedMs) // SEMPRE integer
+
+    console.log('Stopping session:', {
+      sessionElapsedMs: session.elapsedMs,
+      finalDuration,
+      sessionId: session.sessionId
+    })
+
+    // Envia heartbeat final se necessário
+    if (finalDuration > 0) {
+      await trpcClient.timer.heartbeat.mutate({
+        sessionId: session.sessionId,
+        deltaMs: finalDuration,
+      })
+    }
 
     // Finaliza no backend
     await trpcClient.timer.stopSession.mutate({
@@ -90,6 +197,9 @@ export const timerActions = {
       },
       activeSession: undefined,
     }))
+
+    // Limpa localStorage
+    clearSessionFromStorage()
   },
 
   // Incrementa tempo local (chamado pelo runtime)
@@ -105,6 +215,12 @@ export const timerActions = {
           }
         : s
     )
+
+    // Atualiza localStorage a cada tick para manter sincronizado
+    const session = studyTimerStore.state.activeSession
+    if (session) {
+      saveSessionToStorage(session)
+    }
   },
 
   // Gera chave de cache para requests
