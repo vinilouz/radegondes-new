@@ -7,7 +7,6 @@ Minha descrição personalizada
 
 tasks:
 - style widget timer 
-- exclude/add reactive
 - header
 - mobile
 

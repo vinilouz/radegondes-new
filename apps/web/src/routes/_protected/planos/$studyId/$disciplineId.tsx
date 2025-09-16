@@ -20,17 +20,22 @@ export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId'
   loader: async ({ params, context }) => {
     const { disciplineId } = params;
     const discipline = await context.trpcClient.getDiscipline.query({ disciplineId });
-    const topics = await context.trpcClient.getTopicsByDiscipline.query({ disciplineId });
-    return { discipline, topics };
+    return { discipline };
   },
   component: DisciplinePage,
 });
 
 function DisciplinePage() {
-  const { discipline, topics } = Route.useLoaderData();
+  const { discipline } = Route.useLoaderData();
   const navigate = useNavigate();
   const storeState = useStore(studyTimerStore);
   const queryClient = useQueryClient();
+
+  const topicsQuery = useQuery({
+    ...trpc.getTopicsByDiscipline.queryOptions({ disciplineId: discipline.id }),
+  });
+
+  const topics = topicsQuery.data ?? [];
 
   const [newTopicName, setNewTopicName] = useState("");
   const [editingTopic, setEditingTopic] = useState<{id: string, name: string} | null>(null);
@@ -157,12 +162,19 @@ function DisciplinePage() {
           <CardTitle className="text-xl font-semibold">Lista de Tópicos</CardTitle>
           <div className="flex space-x-2 pt-4">
             <Input placeholder="Adicionar novo tópico..." value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
-            <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
+            <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending || topicsQuery.isLoading}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
           </div>
         </CardHeader>
         <CardContent>
             <div className="grid gap-4">
-              {topics.map(topic => {
+              {topicsQuery.isLoading ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Loader className="mx-auto h-6 w-6 animate-spin text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">Carregando tópicos...</p>
+                  </CardContent>
+                </Card>
+              ) : topics.map(topic => {
                 const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
                 return (
                   <Card key={topic.id} className="group hover:shadow-md transition-all duration-200 cursor-pointer" onClick={() => setStudyTopic(topic)}>
@@ -198,7 +210,7 @@ function DisciplinePage() {
                   </Card>
                 )
               })}
-              {topics.length === 0 && (
+              {!topicsQuery.isLoading && topics.length === 0 && (
                 <Card>
                   <CardContent className="text-center py-12">
                     <Plus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
