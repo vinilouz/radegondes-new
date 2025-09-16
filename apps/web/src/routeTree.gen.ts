@@ -15,7 +15,8 @@ import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProtectedModulesRouteImport } from './routes/_protected/modules'
 import { Route as ProtectedPlanosIndexRouteImport } from './routes/_protected/planos/index'
-import { Route as ProtectedPlanosStudyIdRouteImport } from './routes/_protected/planos/$studyId'
+import { Route as ProtectedPlanosStudyIdIndexRouteImport } from './routes/_protected/planos/$studyId/index'
+import { Route as ProtectedPlanosStudyIdDisciplineIdRouteImport } from './routes/_protected/planos/$studyId/$disciplineId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -46,27 +47,36 @@ const ProtectedPlanosIndexRoute = ProtectedPlanosIndexRouteImport.update({
   path: '/planos/',
   getParentRoute: () => ProtectedRoute,
 } as any)
-const ProtectedPlanosStudyIdRoute = ProtectedPlanosStudyIdRouteImport.update({
-  id: '/planos/$studyId',
-  path: '/planos/$studyId',
-  getParentRoute: () => ProtectedRoute,
-} as any)
+const ProtectedPlanosStudyIdIndexRoute =
+  ProtectedPlanosStudyIdIndexRouteImport.update({
+    id: '/planos/$studyId/',
+    path: '/planos/$studyId/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedPlanosStudyIdDisciplineIdRoute =
+  ProtectedPlanosStudyIdDisciplineIdRouteImport.update({
+    id: '/planos/$studyId/$disciplineId',
+    path: '/planos/$studyId/$disciplineId',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/modules': typeof ProtectedModulesRoute
-  '/planos/$studyId': typeof ProtectedPlanosStudyIdRoute
   '/planos': typeof ProtectedPlanosIndexRoute
+  '/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
+  '/planos/$studyId': typeof ProtectedPlanosStudyIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/modules': typeof ProtectedModulesRoute
-  '/planos/$studyId': typeof ProtectedPlanosStudyIdRoute
   '/planos': typeof ProtectedPlanosIndexRoute
+  '/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
+  '/planos/$studyId': typeof ProtectedPlanosStudyIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -75,8 +85,9 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/_protected/modules': typeof ProtectedModulesRoute
-  '/_protected/planos/$studyId': typeof ProtectedPlanosStudyIdRoute
   '/_protected/planos/': typeof ProtectedPlanosIndexRoute
+  '/_protected/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
+  '/_protected/planos/$studyId/': typeof ProtectedPlanosStudyIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -85,16 +96,18 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/modules'
-    | '/planos/$studyId'
     | '/planos'
+    | '/planos/$studyId/$disciplineId'
+    | '/planos/$studyId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
     | '/login'
     | '/modules'
-    | '/planos/$studyId'
     | '/planos'
+    | '/planos/$studyId/$disciplineId'
+    | '/planos/$studyId'
   id:
     | '__root__'
     | '/'
@@ -102,8 +115,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/_protected/modules'
-    | '/_protected/planos/$studyId'
     | '/_protected/planos/'
+    | '/_protected/planos/$studyId/$disciplineId'
+    | '/_protected/planos/$studyId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -157,11 +171,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedPlanosIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
-    '/_protected/planos/$studyId': {
-      id: '/_protected/planos/$studyId'
+    '/_protected/planos/$studyId/': {
+      id: '/_protected/planos/$studyId/'
       path: '/planos/$studyId'
       fullPath: '/planos/$studyId'
-      preLoaderRoute: typeof ProtectedPlanosStudyIdRouteImport
+      preLoaderRoute: typeof ProtectedPlanosStudyIdIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/planos/$studyId/$disciplineId': {
+      id: '/_protected/planos/$studyId/$disciplineId'
+      path: '/planos/$studyId/$disciplineId'
+      fullPath: '/planos/$studyId/$disciplineId'
+      preLoaderRoute: typeof ProtectedPlanosStudyIdDisciplineIdRouteImport
       parentRoute: typeof ProtectedRoute
     }
   }
@@ -169,14 +190,17 @@ declare module '@tanstack/react-router' {
 
 interface ProtectedRouteChildren {
   ProtectedModulesRoute: typeof ProtectedModulesRoute
-  ProtectedPlanosStudyIdRoute: typeof ProtectedPlanosStudyIdRoute
   ProtectedPlanosIndexRoute: typeof ProtectedPlanosIndexRoute
+  ProtectedPlanosStudyIdDisciplineIdRoute: typeof ProtectedPlanosStudyIdDisciplineIdRoute
+  ProtectedPlanosStudyIdIndexRoute: typeof ProtectedPlanosStudyIdIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedModulesRoute: ProtectedModulesRoute,
-  ProtectedPlanosStudyIdRoute: ProtectedPlanosStudyIdRoute,
   ProtectedPlanosIndexRoute: ProtectedPlanosIndexRoute,
+  ProtectedPlanosStudyIdDisciplineIdRoute:
+    ProtectedPlanosStudyIdDisciplineIdRoute,
+  ProtectedPlanosStudyIdIndexRoute: ProtectedPlanosStudyIdIndexRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(

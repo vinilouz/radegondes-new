@@ -18,19 +18,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export const Route = createFileRoute("/_protected/planos/$studyId")({
+export const Route = createFileRoute("/_protected/planos/$studyId/")({
   component: StudyDetailsPage,
 });
 
 function StudyDetailsPage() {
-  const { studyId } = useParams({ from: "/_protected/planos/$studyId" });
+  const { studyId } = useParams({ from: "/_protected/planos/$studyId/" });
   const { data: session, isPending: authPending } = authClient.useSession();
   const navigate = useNavigate();
   const [isCreateDisciplineDialogOpen, setIsCreateDisciplineDialogOpen] = useState(false);
   const [newDisciplineName, setNewDisciplineName] = useState("");
   const [editingDiscipline, setEditingDiscipline] = useState<string | null>(null);
   const [editDisciplineName, setEditDisciplineName] = useState("");
-  const [newTopicName, setNewTopicName] = useState("");
+  const [newTopicNames, setNewTopicNames] = useState<Record<string, string>>({});
   const [editingTopics, setEditingTopics] = useState<Record<string, string>>({});
 
   const queryClient = useQueryClient();
@@ -70,10 +70,10 @@ function StudyDetailsPage() {
 
   const createTopicMutation = useMutation({
     ...trpc.createTopic.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: trpc.getTopics.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.getModules.queryKey() });
-      setNewTopicName("");
+      queryClient.invalidateQueries({ queryKey: trpc.getDisciplines.queryKey() });
+      setNewTopicNames(prev => ({ ...prev, [variables.disciplineId]: "" }));
     },
   });
 
@@ -89,7 +89,7 @@ function StudyDetailsPage() {
     ...trpc.deleteTopic.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.getTopics.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.getModules.queryKey() });
+      queryClient.invalidateQueries({ queryKey: trpc.getDisciplines.queryKey() });
     },
   });
 
@@ -123,11 +123,12 @@ function StudyDetailsPage() {
   };
 
   const handleCreateTopic = (disciplineId: string) => {
-    if (!newTopicName.trim()) return;
+    const topicName = newTopicNames[disciplineId] || "";
+    if (!topicName.trim()) return;
 
     createTopicMutation.mutate({
       disciplineId,
-      name: newTopicName,
+      name: topicName,
     });
   };
 
@@ -399,12 +400,22 @@ function StudyDetailsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <div className="text-sm font-medium">Tópicos:</div>
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm font-medium">Tópicos:</div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate({ to: `/planos/${studyId}/${discipline.id}` })}
+                          className="h-6 text-xs"
+                        >
+                          Ver todos →
+                        </Button>
+                      </div>
                       {disciplineTopics.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Nenhum tópico adicionado</p>
                       ) : (
                         <div className="space-y-1">
-                          {disciplineTopics.map((topic) => (
+                          {disciplineTopics.slice(0, 3).map((topic) => (
                             <div key={topic.id} className="flex items-center justify-between p-2 bg-muted rounded">
                               <div className="flex items-center space-x-2">
                                 <div className={`w-2 h-2 rounded-full ${
@@ -464,18 +475,23 @@ function StudyDetailsPage() {
                               </Button>
                             </div>
                           ))}
+                          {disciplineTopics.length > 3 && (
+                            <div className="text-xs text-muted-foreground text-center pt-1">
+                              +{disciplineTopics.length - 3} mais tópicos
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
 
                     <div className="flex space-x-2">
                       <Input
-                        placeholder="Novo tópico..."
-                        value={newTopicName}
-                        onChange={(e) => setNewTopicName(e.target.value)}
+                        placeholder="PDF 1..."
+                        value={newTopicNames[discipline.id] || ""}
+                        onChange={(e) => setNewTopicNames(prev => ({ ...prev, [discipline.id]: e.target.value }))}
                         onKeyPress={(e) => {
                           if (e.key === "Enter") {
-                            handleCreateTopic(module.id);
+                            handleCreateTopic(discipline.id);
                           }
                         }}
                         className="flex-1"
@@ -483,7 +499,7 @@ function StudyDetailsPage() {
                       <Button
                         size="sm"
                         onClick={() => handleCreateTopic(discipline.id)}
-                        disabled={!newTopicName.trim() || createTopicMutation.isPending}
+                        disabled={!(newTopicNames[discipline.id] || "").trim() || createTopicMutation.isPending}
                       >
                         <Plus className="h-4 w-4" />
                       </Button>

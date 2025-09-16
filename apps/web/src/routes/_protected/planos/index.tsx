@@ -275,7 +275,7 @@ function StudiesPage() {
                 <div className="study-stat text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
                   <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
                     <Timer className="h-4 w-4" />
-                    {study.horasEstudo || 0}h
+                    0h
                   </div>
                   <div className="study-stat-label text-xs text-muted-foreground uppercase">
                     Tempo

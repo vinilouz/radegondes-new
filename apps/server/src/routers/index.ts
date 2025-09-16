@@ -1,7 +1,7 @@
 import { protectedProcedure, publicProcedure, router, loggerMiddleware } from "../lib/trpc";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
-import { eq, desc, count, sum } from "drizzle-orm";
+import { eq, and, desc, count, sum } from "drizzle-orm";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -415,6 +415,225 @@ export const appRouter = router({
 				.where(eq(topic.id, input.topicId));
 
 			return { success: true };
+		}),
+
+	// Discipline details operations
+	getDiscipline: protectedProcedure
+		.input(z.object({
+			disciplineId: z.string(),
+		}))
+		.query(async ({ ctx, input }) => {
+			const userId = ctx.session.user.id;
+
+			const disciplineResult = await db
+				.select({
+					id: discipline.id,
+					name: discipline.name,
+					studyId: discipline.studyId,
+					createdAt: discipline.createdAt,
+				})
+				.from(discipline)
+				.leftJoin(study, eq(discipline.studyId, study.id))
+				.where(and(eq(discipline.id, input.disciplineId), eq(study.userId, userId)))
+				.limit(1);
+
+			if (!disciplineResult.length) {
+				throw new Error("Discipline not found or access denied");
+			}
+
+			return disciplineResult[0];
+		}),
+
+	getTopicsByDiscipline: protectedProcedure
+		.input(z.object({
+			disciplineId: z.string(),
+		}))
+		.query(async ({ ctx, input }) => {
+			const userId = ctx.session.user.id;
+
+			const disciplineCheck = await db
+				.select({
+					disciplineId: discipline.id,
+					studyId: discipline.studyId,
+					userId: study.userId
+				})
+				.from(discipline)
+				.leftJoin(study, eq(discipline.studyId, study.id))
+				.where(eq(discipline.id, input.disciplineId))
+				.limit(1);
+
+			if (!disciplineCheck.length || disciplineCheck[0].userId !== userId) {
+				throw new Error("Discipline not found or access denied");
+			}
+
+			const topics = await db
+				.select()
+				.from(topic)
+				.where(eq(topic.disciplineId, input.disciplineId))
+				.orderBy(desc(topic.createdAt));
+
+			return topics;
+		}),
+
+	// Time session operations
+	getTimeSessionsByTopic: protectedProcedure
+		.input(z.object({
+			topicId: z.string(),
+		}))
+		.query(async ({ ctx, input }) => {
+			const userId = ctx.session.user.id;
+
+			const topicCheck = await db
+				.select({
+					topicId: topic.id,
+					disciplineId: topic.disciplineId,
+					studyId: discipline.studyId,
+					userId: study.userId
+				})
+				.from(topic)
+				.leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+				.leftJoin(study, eq(discipline.studyId, study.id))
+				.where(eq(topic.id, input.topicId))
+				.limit(1);
+
+			if (!topicCheck.length || topicCheck[0].userId !== userId) {
+				throw new Error("Topic not found or access denied");
+			}
+
+			const sessions = await db
+				.select()
+				.from(timeSession)
+				.where(eq(timeSession.topicId, input.topicId))
+				.orderBy(desc(timeSession.startTime));
+
+			return sessions;
+		}),
+
+	createTimeSession: protectedProcedure
+		.input(z.object({
+			topicId: z.string(),
+			sessionType: z.enum(["study", "review", "practice"]).default("study"),
+		}))
+		.mutation(async ({ ctx, input }) => {
+			const userId = ctx.session.user.id;
+
+			const topicCheck = await db
+				.select({
+					topicId: topic.id,
+					disciplineId: topic.disciplineId,
+					studyId: discipline.studyId,
+					userId: study.userId
+				})
+				.from(topic)
+				.leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+				.leftJoin(study, eq(discipline.studyId, study.id))
+				.where(eq(topic.id, input.topicId))
+				.limit(1);
+
+			if (!topicCheck.length || topicCheck[0].userId !== userId) {
+				throw new Error("Topic not found or access denied");
+			}
+
+			const { randomUUID } = await import('crypto');
+			const sessionId = randomUUID();
+
+			const result = await db
+				.insert(timeSession)
+				.values({
+					id: sessionId,
+					topicId: input.topicId,
+					startTime: new Date(),
+					sessionType: input.sessionType,
+					duration: 0,
+					createdAt: new Date(),
+				})
+				.returning();
+
+			return result[0];
+		}),
+
+	updateTimeSession: protectedProcedure
+		.input(z.object({
+			sessionId: z.string(),
+			endTime: z.date().optional(),
+			duration: z.number().min(0).optional(),
+		}))
+		.mutation(async ({ ctx, input }) => {
+			const userId = ctx.session.user.id;
+
+			const sessionCheck = await db
+				.select({
+					sessionId: timeSession.id,
+					topicId: timeSession.topicId,
+					disciplineId: topic.disciplineId,
+					studyId: discipline.studyId,
+					userId: study.userId
+				})
+				.from(timeSession)
+				.leftJoin(topic, eq(timeSession.topicId, topic.id))
+				.leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+				.leftJoin(study, eq(discipline.studyId, study.id))
+				.where(eq(timeSession.id, input.sessionId))
+				.limit(1);
+
+			if (!sessionCheck.length || sessionCheck[0].userId !== userId) {
+				throw new Error("Session not found or access denied");
+			}
+
+			const updateData: any = {};
+			if (input.endTime) updateData.endTime = input.endTime;
+			if (input.duration !== undefined) updateData.duration = input.duration;
+
+			const updated = await db
+				.update(timeSession)
+				.set(updateData)
+				.where(eq(timeSession.id, input.sessionId))
+				.returning();
+
+			return updated[0];
+		}),
+
+	updateTopicProgress: protectedProcedure
+		.input(z.object({
+			topicId: z.string(),
+			status: z.enum(["not_started", "in_progress", "completed"]).optional(),
+			correct: z.number().min(0).optional(),
+			wrong: z.number().min(0).optional(),
+			notes: z.string().optional(),
+		}))
+		.mutation(async ({ ctx, input }) => {
+			const userId = ctx.session.user.id;
+
+			const topicCheck = await db
+				.select({
+					topicId: topic.id,
+					disciplineId: topic.disciplineId,
+					studyId: discipline.studyId,
+					userId: study.userId
+				})
+				.from(topic)
+				.leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+				.leftJoin(study, eq(discipline.studyId, study.id))
+				.where(eq(topic.id, input.topicId))
+				.limit(1);
+
+			if (!topicCheck.length || topicCheck[0].userId !== userId) {
+				throw new Error("Topic not found or access denied");
+			}
+
+			const updateData: any = { updatedAt: new Date() };
+			if (input.status !== undefined) updateData.status = input.status;
+			if (input.correct !== undefined) updateData.correct = input.correct;
+			if (input.wrong !== undefined) updateData.wrong = input.wrong;
+			if (input.notes !== undefined) updateData.notes = input.notes;
+
+			const updated = await db
+				.update(topic)
+				.set(updateData)
+				.where(eq(topic.id, input.topicId))
+				.returning();
+
+			return updated[0];
 		}),
 });
 export type AppRouter = typeof appRouter;
