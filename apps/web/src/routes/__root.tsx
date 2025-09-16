@@ -15,6 +15,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { StudyTimerRuntime } from "@/components/StudyTimerRuntime";
 import { StudyTimerWidget } from "@/components/StudyTimerWidget";
 import "../index.css";
+import { TimerDiagnostics } from "@/components/TimerDiagnostics";
 
 export interface RouterAppContext {
 	trpc: typeof trpc;
@@ -67,6 +68,7 @@ function RootComponent() {
 			<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
       <StudyTimerRuntime />
       <StudyTimerWidget />
+      {/* {import.meta.env.DEV && <TimerDiagnostics />} */}
 		</>
 	);
 }

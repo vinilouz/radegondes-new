@@ -1,25 +1,11 @@
-
 import { protectedProcedure, router } from "../lib/trpc";
 import { db } from "../db";
 import { timeSession, topic, discipline, study } from "../db/schema/study";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
-// Cache para getTotals endpoint (TTL de 30 segundos)
-const getTotalsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 segundos
-
-// Limpa cache periodicamente
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of getTotalsCache.entries()) {
-    if (now - value.timestamp > CACHE_TTL) {
-      getTotalsCache.delete(key);
-    }
-  }
-}, 60000); // Limpa a cada minuto
-
 export const timerRouter = router({
+  // Inicia sessão
   startSession: protectedProcedure
     .input(
       z.object({
@@ -29,7 +15,8 @@ export const timerRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      // Verify user has access to this topic
+      
+      // Verifica acesso ao tópico
       const topicCheck = await db
         .select({ id: topic.id })
         .from(topic)
@@ -41,6 +28,7 @@ export const timerRouter = router({
         throw new Error("Topic not found or access denied");
       }
 
+      // Cria sessão com duration 0
       const result = await db
         .insert(timeSession)
         .values({
@@ -48,33 +36,41 @@ export const timerRouter = router({
           topicId: input.topicId,
           startTime: new Date(),
           duration: 0,
+          sessionType: "study",
         })
         .returning();
+        
       return result[0];
     }),
 
+  // Para sessão com duração TOTAL
   stopSession: protectedProcedure
     .input(
       z.object({
         sessionId: z.string().uuid(),
-        duration: z.number().int().min(0),
+        duration: z.number().int().min(0).max(86400000), // Max 24h
       })
     )
-    .mutation(async ({ ctx, input }) => {
-      // We don't need to verify ownership here again as much,
-      // because the sessionId is a UUID and hard to guess.
-      // A select could be added for extra security.
+    .mutation(async ({ input }) => {
+      // Atualiza sessão com duração FINAL e endTime
       const result = await db
         .update(timeSession)
         .set({
           endTime: new Date(),
-          duration: input.duration,
+          duration: input.duration, // Duration TOTAL, não incremental
         })
         .where(eq(timeSession.id, input.sessionId))
         .returning();
+        
+      if (result.length === 0) {
+        console.warn('Session not found:', input.sessionId);
+        return null;
+      }
+      
       return result[0];
     }),
 
+  // Heartbeat opcional (não crítico)
   heartbeat: protectedProcedure
     .input(
       z.object({
@@ -83,15 +79,19 @@ export const timerRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      // Atualiza duration com o valor total recebido
+      // (não soma, apenas sobrescreve com o valor mais recente)
       await db
         .update(timeSession)
         .set({
-          duration: sql`${timeSession.duration} + ${input.deltaMs}`,
+          duration: input.deltaMs, // Sobrescreve com valor total
         })
         .where(eq(timeSession.id, input.sessionId));
+        
       return { success: true };
     }),
 
+  // Busca totais
   getTotals: protectedProcedure
     .input(
       z.object({
@@ -109,70 +109,25 @@ export const timerRouter = router({
         };
       }
 
-      // Gera chave de cache
-      const cacheKey = JSON.stringify({ studyId: input.studyId, disciplineIds: input.disciplineIds, topicIds: input.topicIds });
-
-      // Verifica cache primeiro
-      const cached = getTotalsCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        return cached.data;
-      }
-
-      // Query incluindo sessões ativas (sem endTime) - CRÍTICO para não perder dados
+      // Busca soma de TODAS as sessões (finalizadas ou não)
       const totals = await db
         .select({
           topicId: timeSession.topicId,
-          totalDuration: sql<number>`sum(${timeSession.duration})`.mapWith(Number),
+          totalDuration: sql<number>`COALESCE(SUM(${timeSession.duration}), 0)`.mapWith(Number),
         })
         .from(timeSession)
         .where(inArray(timeSession.topicId, input.topicIds))
         .groupBy(timeSession.topicId);
 
-      const topicTotalsMap = Object.fromEntries(
+      const topicTotals = Object.fromEntries(
         totals.map((t) => [t.topicId, t.totalDuration])
       );
 
-      // Query otimizada para hierarquia (evita joins quando possível)
-      const topicIdsSet = new Set(input.topicIds);
-      const topicsWithHierarchy = await db
-        .select({
-          id: topic.id,
-          disciplineId: topic.disciplineId,
-          studyId: discipline.studyId,
-        })
-        .from(topic)
-        .innerJoin(discipline, eq(topic.disciplineId, discipline.id))
-        .where(inArray(topic.id, input.topicIds))
-        .limit(1000); // Limite para evitar queries muito grandes
-
-      const disciplineTotals: Record<string, number> = {};
-      const studyTotals: Record<string, number> = {};
-
-      // Calcula totais de forma otimizada
-      for (const t of topicsWithHierarchy) {
-        if (topicIdsSet.has(t.id)) {
-          const topicTime = topicTotalsMap[t.id] || 0;
-          if (t.disciplineId) {
-            disciplineTotals[t.disciplineId] = (disciplineTotals[t.disciplineId] || 0) + topicTime;
-          }
-          if (t.studyId) {
-            studyTotals[t.studyId] = (studyTotals[t.studyId] || 0) + topicTime;
-          }
-        }
-      }
-
-      const result = {
-        topicTotals: topicTotalsMap,
-        disciplineTotals,
-        studyTotals,
+      // Para disciplinas e estudos, apenas retorna vazio por enquanto
+      return {
+        topicTotals,
+        disciplineTotals: {},
+        studyTotals: {},
       };
-
-      // Cacheia resultado
-      getTotalsCache.set(cacheKey, {
-        data: result,
-        timestamp: Date.now(),
-      });
-
-      return result;
     }),
 });

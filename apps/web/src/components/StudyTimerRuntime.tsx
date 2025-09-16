@@ -7,40 +7,54 @@ export function StudyTimerRuntime() {
     timerActions.restoreSession()
   }, [])
   
-  // Salva ao desmontar ou ocultar página
+  // GARANTE salvamento ao desmontar/fechar
   useEffect(() => {
-    const saveBeforeUnload = () => {
-      const session = timerActions.getActiveSession()
+    const saveOnUnload = (e: BeforeUnloadEvent) => {
+      // Tenta salvar de forma SÍNCRONA
+      const session = localStorage.getItem('timer_session_v2')
       if (!session) return
       
-      // Força salvamento síncrono (melhor esforço)
-      const currentDuration = Date.now() - session.startTimestamp
-      const deltaToSave = currentDuration - session.savedDuration
+      const parsed = JSON.parse(session)
+      const duration = Math.round(Date.now() - parsed.startTime)
       
-      if (deltaToSave > 0) {
-        // Usa sendBeacon para garantir envio
-        const data = JSON.stringify({
-          sessionId: session.sessionId,
-          deltaMs: Math.round(deltaToSave)
-        })
-        
-        navigator.sendBeacon('/trpc/timer.heartbeat', data)
+      // Usa sendBeacon para garantir envio
+      const url = `${import.meta.env.VITE_SERVER_URL}/trpc/timer.stopSession`
+      const data = JSON.stringify({
+        sessionId: parsed.sessionId,
+        duration: duration
+      })
+      
+      navigator.sendBeacon(url, data)
+      
+      // Também tenta salvar via fetch síncrono (backup)
+      try {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', url, false) // false = síncrono
+        xhr.setRequestHeader('Content-Type', 'application/json')
+        xhr.send(data)
+      } catch (error) {
+        // Ignora erro, sendBeacon já deve ter funcionado
       }
+      
+      // Remove do localStorage para evitar duplicação
+      localStorage.removeItem('timer_session_v2')
     }
     
-    // Salva quando página fica oculta
-    const handleVisibilityChange = () => {
+    // Salva quando aba fica oculta
+    const saveOnHide = () => {
       if (document.visibilityState === 'hidden') {
-        saveBeforeUnload()
+        timerActions.stopSession().catch(console.error)
       }
     }
     
-    window.addEventListener('beforeunload', saveBeforeUnload)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', saveOnUnload)
+    window.addEventListener('unload', saveOnUnload) // Backup
+    document.addEventListener('visibilitychange', saveOnHide)
     
     return () => {
-      window.removeEventListener('beforeunload', saveBeforeUnload)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', saveOnUnload)
+      window.removeEventListener('unload', saveOnUnload)
+      document.removeEventListener('visibilitychange', saveOnHide)
     }
   }, [])
   

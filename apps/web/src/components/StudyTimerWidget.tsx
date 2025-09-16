@@ -1,13 +1,16 @@
 import { useStore } from '@tanstack/react-store'
 import { studyTimerStore, selectors, timerActions } from '@/store/studyTimerStore'
 import { formatTime } from '@/lib/utils'
-import { X, Pause, Play } from 'lucide-react'
+import { X, Square } from 'lucide-react'
 import { useState } from 'react'
 
 export function StudyTimerWidget() {
-  const activeSession = useStore(studyTimerStore, selectors.getActiveSession)
-  const sessionTime = useStore(studyTimerStore, selectors.getActiveSessionTime)
   const [isStopping, setIsStopping] = useState(false)
+  
+  // Força re-render a cada segundo via tick
+  const tick = useStore(studyTimerStore, s => s.tick)
+  const activeSession = useStore(studyTimerStore, selectors.getActiveSession)
+  const sessionTime = useStore(studyTimerStore, selectors.getCurrentSessionTime)
   
   if (!activeSession) return null
   
@@ -17,49 +20,37 @@ export function StudyTimerWidget() {
     
     try {
       await timerActions.stopSession()
+      // Força reload dos totais
+      await timerActions.loadTotals([activeSession.topicId])
     } catch (error) {
       console.error('Erro ao parar sessão:', error)
-      alert('Erro ao parar timer. Tente novamente.')
-    } finally {
+      alert('Erro ao salvar. Por favor, tente novamente!')
       setIsStopping(false)
     }
   }
   
-  // Pega nome do tópico do localStorage ou mostra ID
-  const getTopicName = () => {
-    // Simplificado - você pode melhorar isso buscando o nome real
-    return activeSession.topicId.slice(0, 20) + '...'
-  }
-  
   return (
-    <div className="fixed bottom-6 right-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl shadow-2xl p-5 min-w-[280px] z-50">
+    <div className="fixed bottom-4 right-4 bg-gradient-to-br from-blue-600 to-blue-700 
+                    text-white rounded-xl shadow-2xl p-4 min-w-[250px] z-50">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium opacity-90">Estudando</span>
+        <span className="text-xs font-medium opacity-90 uppercase tracking-wider">
+          Timer Ativo
+        </span>
         <button
           onClick={handleStop}
           disabled={isStopping}
-          className="hover:bg-white/20 rounded-lg p-1 transition-colors"
+          className="hover:bg-white/20 rounded p-1 transition-colors disabled:opacity-50"
           title="Parar timer"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
       
-      {/* Topic Name */}
-      <div className="mb-4">
-        <div className="font-semibold text-lg truncate">
-          {getTopicName()}
-        </div>
-      </div>
-      
-      {/* Timer Display */}
-      <div className="bg-black/20 rounded-lg p-4 mb-4">
-        <div className="font-mono text-3xl font-bold text-center tracking-wider">
+      {/* Timer Display - ÚNICO CÁLCULO */}
+      <div className="bg-black/20 rounded-lg p-3 mb-3">
+        <div className="font-mono text-2xl font-bold text-center">
           {formatTime(sessionTime)}
-        </div>
-        <div className="text-xs text-center mt-1 opacity-75">
-          Sessão Atual
         </div>
       </div>
       
@@ -67,23 +58,23 @@ export function StudyTimerWidget() {
       <button
         onClick={handleStop}
         disabled={isStopping}
-        className="w-full bg-red-500 hover:bg-red-600 disabled:bg-red-400 disabled:cursor-not-allowed 
-                   px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-red-500 hover:bg-red-600 disabled:bg-red-400 
+                   disabled:cursor-not-allowed px-3 py-2 rounded-lg font-medium 
+                   transition-colors flex items-center justify-center gap-2 text-sm"
       >
         {isStopping ? (
           <>Salvando...</>
         ) : (
           <>
-            <Pause className="h-4 w-4" />
+            <Square className="h-4 w-4" />
             Parar e Salvar
           </>
         )}
       </button>
       
-      {/* Status Indicator */}
-      <div className="mt-3 flex items-center justify-center gap-2">
-        <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse" />
-        <span className="text-xs opacity-75">Salvando automaticamente</span>
+      {/* Debug Info (remova em produção) */}
+      <div className="mt-2 text-xs opacity-60 text-center">
+        ID: {activeSession.topicId.slice(0, 8)}...
       </div>
     </div>
   )

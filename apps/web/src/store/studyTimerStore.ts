@@ -1,237 +1,204 @@
 import { Store } from '@tanstack/react-store'
 import { trpcClient } from '@/utils/trpc'
 
-const SESSION_KEY = 'active_timer_session'
+const SESSION_KEY = 'timer_session_v2'
 
 export type ActiveSession = {
+  sessionId: string
   topicId: string
   disciplineId: string
   studyId: string
-  sessionId: string
-  startTimestamp: number // Unix timestamp quando iniciou
-  savedDuration: number  // Tempo já salvo no backend (ms)
+  startTime: number // timestamp quando iniciou
 }
 
 export type TimeData = {
-  // Totais do backend (já persistidos)
-  topicTotals: Record<string, number>
+  // Totais já salvos no backend
+  savedTotals: Record<string, number>
   
-  // Sessão ativa
-  activeSession?: ActiveSession
+  // Sessão ativa (apenas uma por vez)
+  activeSession: ActiveSession | null
   
-  // Para forçar re-render a cada segundo
-  currentTime: number
+  // Força re-render a cada segundo
+  tick: number
 }
 
 export const studyTimerStore = new Store<TimeData>({
-  topicTotals: {},
-  activeSession: undefined,
-  currentTime: Date.now(),
+  savedTotals: {},
+  activeSession: null,
+  tick: 0
 })
 
-// Atualiza o tempo a cada segundo para re-render
+// Tick a cada segundo para UI atualizar
 setInterval(() => {
-  studyTimerStore.setState(s => ({
-    ...s,
-    currentTime: Date.now()
-  }))
+  if (studyTimerStore.state.activeSession) {
+    studyTimerStore.setState(s => ({ ...s, tick: s.tick + 1 }))
+  }
 }, 1000)
 
 export const timerActions = {
-  // Inicia nova sessão
+  // Inicia sessão
   async startSession(topicId: string, disciplineId: string, studyId: string) {
+    // Para qualquer sessão anterior
+    await this.stopSession()
+    
     const sessionId = crypto.randomUUID()
+    const startTime = Date.now()
     
     // Cria sessão no backend
     await trpcClient.timer.startSession.mutate({ sessionId, topicId })
     
     const session: ActiveSession = {
+      sessionId,
       topicId,
       disciplineId,
       studyId,
-      sessionId,
-      startTimestamp: Date.now(),
-      savedDuration: 0
+      startTime
     }
     
-    // Salva no localStorage e no store
+    // Salva no localStorage E no store
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
     studyTimerStore.setState(s => ({
       ...s,
       activeSession: session
     }))
     
-    // Inicia auto-save
-    this.startAutoSave()
+    console.log('Session started:', session)
   },
   
-  // Para sessão e salva tempo final
-  async stopSession() {
+  // Para sessão e GARANTE salvamento
+  async stopSession(): Promise<void> {
     const session = studyTimerStore.state.activeSession
     if (!session) return
     
-    // Calcula duração total real
-    const currentDuration = Date.now() - session.startTimestamp
-    const totalDuration = session.savedDuration + currentDuration
+    // Calcula duração TOTAL
+    const duration = Math.round(Date.now() - session.startTime)
     
-    // Salva tempo final no backend
-    await trpcClient.timer.stopSession.mutate({
-      sessionId: session.sessionId,
-      duration: Math.round(totalDuration)
-    })
-    
-    // Atualiza totais locais
-    studyTimerStore.setState(s => ({
-      ...s,
-      topicTotals: {
-        ...s.topicTotals,
-        [session.topicId]: (s.topicTotals[session.topicId] || 0) + totalDuration
-      },
-      activeSession: undefined
-    }))
-    
-    // Limpa localStorage
-    localStorage.removeItem(SESSION_KEY)
-    
-    // Para auto-save
-    this.stopAutoSave()
-  },
-  
-  // Auto-save a cada 5 segundos
-  autoSaveInterval: null as NodeJS.Timeout | null,
-  
-  startAutoSave() {
-    // Para interval anterior se existir
-    if (this.autoSaveInterval) {
-      clearInterval(this.autoSaveInterval)
-    }
-    
-    // Salva a cada 5 segundos
-    this.autoSaveInterval = setInterval(async () => {
-      const session = studyTimerStore.state.activeSession
-      if (!session) {
-        this.stopAutoSave()
-        return
-      }
-      
-      // Calcula tempo desde última gravação
-      const currentDuration = Date.now() - session.startTimestamp
-      const deltaToSave = currentDuration - session.savedDuration
-      
-      if (deltaToSave > 0) {
-        try {
-          // Envia heartbeat incremental
-          await trpcClient.timer.heartbeat.mutate({
-            sessionId: session.sessionId,
-            deltaMs: Math.round(deltaToSave)
-          })
-          
-          // Atualiza savedDuration na sessão
-          const updatedSession = {
-            ...session,
-            savedDuration: currentDuration
-          }
-          
-          localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession))
-          studyTimerStore.setState(s => ({
-            ...s,
-            activeSession: updatedSession
-          }))
-        } catch (error) {
-          console.error('Erro ao salvar tempo:', error)
-          // Continua tentando no próximo intervalo
-        }
-      }
-    }, 5000)
-  },
-  
-  stopAutoSave() {
-    if (this.autoSaveInterval) {
-      clearInterval(this.autoSaveInterval)
-      this.autoSaveInterval = null
-    }
-  },
-  
-  // Restaura sessão do localStorage
-  async restoreSession() {
-    const stored = localStorage.getItem(SESSION_KEY)
-    if (!stored) return false
+    console.log('Stopping session:', { sessionId: session.sessionId, duration })
     
     try {
+      // Salva no backend com duração TOTAL
+      await trpcClient.timer.stopSession.mutate({
+        sessionId: session.sessionId,
+        duration: duration
+      })
+      
+      // Atualiza totais locais imediatamente
+      studyTimerStore.setState(s => ({
+        ...s,
+        savedTotals: {
+          ...s.savedTotals,
+          [session.topicId]: (s.savedTotals[session.topicId] || 0) + duration
+        },
+        activeSession: null
+      }))
+      
+      // Limpa localStorage
+      localStorage.removeItem(SESSION_KEY)
+      
+      console.log('Session stopped successfully')
+    } catch (error) {
+      console.error('Error stopping session:', error)
+      throw error // Re-throw para UI poder lidar
+    }
+  },
+  
+  // Restaura sessão ao carregar página
+  async restoreSession(): Promise<boolean> {
+    try {
+      const stored = localStorage.getItem(SESSION_KEY)
+      if (!stored) return false
+      
       const session: ActiveSession = JSON.parse(stored)
       
-      // Verifica se não é muito antiga (24h)
-      const age = Date.now() - session.startTimestamp
-      if (age > 24 * 60 * 60 * 1000) {
+      // Verifica se não é muito antiga (1 hora max)
+      const age = Date.now() - session.startTime
+      if (age > 60 * 60 * 1000) {
+        // Sessão muito antiga, finaliza ela
+        const duration = Math.round(age)
+        await trpcClient.timer.stopSession.mutate({
+          sessionId: session.sessionId,
+          duration: Math.min(duration, 3600000) // Max 1 hora
+        })
         localStorage.removeItem(SESSION_KEY)
         return false
       }
       
-      // Verifica se sessão ainda existe no backend
-      // Calculando tempo que passou offline
-      const offlineTime = Date.now() - (session.startTimestamp + session.savedDuration)
-      
-      if (offlineTime > 0) {
-        // Salva tempo offline
-        await trpcClient.timer.heartbeat.mutate({
-          sessionId: session.sessionId,
-          deltaMs: Math.min(Math.round(offlineTime), 60000) // Max 1 min offline
-        })
-        
-        session.savedDuration += Math.min(offlineTime, 60000)
-      }
-      
-      // Restaura sessão
+      // Restaura sessão ativa
       studyTimerStore.setState(s => ({
         ...s,
         activeSession: session
       }))
       
-      // Reinicia auto-save
-      this.startAutoSave()
-      
+      console.log('Session restored:', session)
       return true
     } catch (error) {
-      console.error('Erro ao restaurar sessão:', error)
+      console.error('Error restoring session:', error)
       localStorage.removeItem(SESSION_KEY)
       return false
     }
   },
   
-  // Carrega totais do backend
+  // Carrega totais salvos do backend
   async loadTotals(topicIds: string[]) {
     if (!topicIds.length) return
     
-    const { topicTotals } = await trpcClient.timer.getTotals.query({
-      topicIds
-    })
+    try {
+      const { topicTotals } = await trpcClient.timer.getTotals.query({ topicIds })
+      
+      studyTimerStore.setState(s => ({
+        ...s,
+        savedTotals: { ...s.savedTotals, ...topicTotals }
+      }))
+    } catch (error) {
+      console.error('Error loading totals:', error)
+    }
+  },
+  
+  // Heartbeat opcional (não crítico)
+  async sendHeartbeat() {
+    const session = studyTimerStore.state.activeSession
+    if (!session) return
     
-    studyTimerStore.setState(s => ({
-      ...s,
-      topicTotals: { ...s.topicTotals, ...topicTotals }
-    }))
+    const duration = Math.round(Date.now() - session.startTime)
+    
+    try {
+      await trpcClient.timer.heartbeat.mutate({
+        sessionId: session.sessionId,
+        deltaMs: duration // Envia duração total, backend que calcule o delta
+      })
+    } catch (error) {
+      // Não é crítico, ignora erro
+      console.warn('Heartbeat failed:', error)
+    }
   }
 }
 
-// Selectors simplificados
+// Heartbeat automático a cada 30 segundos (não crítico)
+setInterval(() => {
+  if (studyTimerStore.state.activeSession) {
+    timerActions.sendHeartbeat()
+  }
+}, 30000)
+
+// Selectors
 export const selectors = {
-  // Tempo total do tópico (backend + sessão ativa)
+  // Tempo total do tópico (salvo + sessão ativa)
   getTopicTime: (topicId: string) => (state: TimeData): number => {
-    const saved = state.topicTotals[topicId] || 0
+    const saved = state.savedTotals[topicId] || 0
     
-    // Se há sessão ativa para este tópico, adiciona tempo atual
+    // Se sessão ativa é deste tópico, adiciona tempo atual
     if (state.activeSession?.topicId === topicId) {
-      const currentDuration = state.currentTime - state.activeSession.startTimestamp
-      return saved + currentDuration
+      const current = Date.now() - state.activeSession.startTime
+      return saved + current
     }
     
     return saved
   },
   
   // Tempo da sessão ativa
-  getActiveSessionTime: (state: TimeData): number => {
+  getCurrentSessionTime: (state: TimeData): number => {
     if (!state.activeSession) return 0
-    return state.currentTime - state.activeSession.startTimestamp
+    return Date.now() - state.activeSession.startTime
   },
   
   getActiveSession: (state: TimeData) => state.activeSession

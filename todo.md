@@ -17,16 +17,13 @@ tasks:
 - mobile
 
 
-
-defina responsabilidades (front,back,design,outro) e usando multi agents faça:
-- padronize o header de todas paginas adaptando o @__OLD/frontend/src/components/Breadcrumb.jsx antigo e criando um atual que faça sentido no projeto atual, siga a estrutura: 
-row 1: braeadcrumb 
-row 2: title & description | back btn
-row 3: specific content
-for:
-@apps/web/src/routes/_protected/planos/$studyId/$disciplineId.tsx
-@apps/web/src/routes/_protected/planos/$studyId/index.tsx
+# TIME FILES
+@apps/web/src/store/studyTimerStore.ts
 @apps/web/src/routes/_protected/planos/index.tsx
-
-- fix: studyTimerStore.ts:38 Uncaught (in promise) TypeError: randomUUID is not a function
-    at Object.startSession (studyTimerStore.ts:38:23)
+@apps/web/src/routes/_protected/planos/$studyId/index.tsx
+@apps/web/src/routes/_protected/planos/$studyId/$disciplineId.tsx
+@apps/web/src/components/TopicTime.tsx
+@apps/web/src/components/StudyTimerWidget.tsx
+@apps/web/src/components/StudyTimerRuntime.tsx
+@apps/web/src/components/StudyTime.tsx
+@apps/web/src/components/DisciplineTime.tsx
