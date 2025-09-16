@@ -44,7 +44,7 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
       const topicIds = topics.map((topic: any) => topic.id);
 
       if (topicIds.length > 0) {
-        await timerActions.loadTotals(undefined, undefined, topicIds, trpcClient);
+        await timerActions.loadTotals(topicIds);
       }
     };
 
@@ -56,7 +56,7 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
     topics.then((topicsData) => {
       const topicIds = topicsData.map((topic: any) => topic.id);
       if (topicIds.length > 0) {
-        const time = selectors.getStudyTime(study.id, topicIds)(storeState);
+        const time = topicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
         setStudyTime(time);
       }
     });

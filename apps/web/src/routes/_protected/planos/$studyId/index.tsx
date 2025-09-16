@@ -49,7 +49,7 @@ function StudyDetailsPage() {
   // Load study totals - otimizado para evitar loops
   useEffect(() => {
     if (allTopicIds.length > 0) {
-      timerActions.loadTotals(studyId, undefined, allTopicIds, trpcClient);
+      timerActions.loadTotals(allTopicIds);
     }
   }, [studyId, allTopicIds.join(',')]); // Usa join como dependência para evitar mudanças de referência
 
@@ -218,7 +218,7 @@ function StudyDetailsPage() {
   const disciplines = disciplinesQuery.data || [];
   const topics = topicsQuery.data || [];
 
-  const totalStudyTime = selectors.getStudyTime(studyId, allTopicIds)(storeState);
+  const totalStudyTime = allTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
   const completedTopics = topics.filter(topic => topic.status === "completed").length;
 
   return (
@@ -366,7 +366,7 @@ function StudyDetailsPage() {
           {disciplines.map((discipline) => {
             const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);
             const disciplineTopicIds = disciplineTopics.map(topic => topic.id);
-            const disciplineTime = selectors.getDisciplineTime(discipline.id, disciplineTopicIds)(storeState);
+            const disciplineTime = disciplineTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
             const completedDisciplineTopics = disciplineTopics.filter(topic => topic.status === "completed").length;
             const disciplineProgress = disciplineTopics.length > 0 ? (completedDisciplineTopics / disciplineTopics.length) * 100 : 0;
 
