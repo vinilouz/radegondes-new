@@ -6,14 +6,9 @@ UserFlow:
 Minha descrição personalizada
 
 tasks:
-* disciplinas
-* topico
-~ tempo
-  - visualizar totais (topico, disciplina, estudo)
-  - garantir tempo pt-br
+- style widget timer 
+- exclude/add reactive
 - header
-- breadcrumb
-- aperfeiçoamentos
 - mobile
 
 

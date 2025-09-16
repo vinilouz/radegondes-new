@@ -14,7 +14,6 @@ import { trpc } from '@/utils/trpc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatTime } from '@/lib/utils';
 
 export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId')({
@@ -34,7 +33,7 @@ function DisciplinePage() {
   const queryClient = useQueryClient();
 
   const [newTopicName, setNewTopicName] = useState("");
-  const [setEditingTopic] = useState<{id: string, name: string} | null>(null);
+  const [editingTopic, setEditingTopic] = useState<{id: string, name: string} | null>(null);
   const [studyTopic, setStudyTopic] = useState<typeof topics[0] | null>(null);
 
   const topicSessionsQuery = useQuery({
@@ -115,7 +114,7 @@ function DisciplinePage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{discipline.name}</h1>
           <p className="text-muted-foreground mt-2">Acompanhe e gerencie seus tópicos de estudo.</p>
         </div>
-        <Button variant="outline" onClick={() => navigate({ to: `/planos/${discipline.studyId}` })} className="flex items-center gap-2">
+        <Button variant="secondary" onClick={() => navigate({ to: `/planos/${discipline.studyId}` })} className="flex items-center gap-2 text-primary bg-primary/10 border-1 border-primary/40 hover:bg-primary/20 hover:border-primary/50">
           <ChevronLeft className="h-4 w-4" />
           Voltar
         </Button>
@@ -157,7 +156,7 @@ function DisciplinePage() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold">Lista de Tópicos</CardTitle>
           <div className="flex space-x-2 pt-4">
-            <Input placeholder="Adicionar novo tópico..." value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
+            <Input placeholder="Adicionar novo tópico..." value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
             <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
           </div>
         </CardHeader>
@@ -202,7 +201,7 @@ function DisciplinePage() {
               {topics.length === 0 && (
                 <Card>
                   <CardContent className="text-center py-12">
-                    <ListTodo className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <Plus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground mb-4">Nenhum tópico adicionado ainda.</p>
                   </CardContent>
                 </Card>
