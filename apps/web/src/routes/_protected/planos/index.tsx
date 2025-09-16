@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Clock, BookOpen, MoreHorizontal, Timer, List, Target } from "lucide-react";
+import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, Target } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,7 +76,6 @@ function StudiesPage() {
     })
   }
 
-  
   if (authPending) {
     return (
       <div className="container mx-auto p-6">
@@ -211,7 +210,7 @@ function StudiesPage() {
           {studiesQuery.data?.map((study) => (
             <a
               key={study.id}
-              className="study-card bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:translate-y-[-2px] cursor-pointer overflow-hidden flex flex-col min-h-[180px] text-decoration-none"
+              className="study-card bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:translate-y-[-2px] cursor-pointer overflow-hidden flex flex-col min-h-[180px] no-underline"
               href={`/planos/${study.id}`}
               onClick={(e) => {
                 e.preventDefault();

@@ -394,9 +394,14 @@ function StudyDetailsPage() {
                       <span className="text-sm text-muted-foreground">
                         {disciplineTopics.length} tópicos
                       </span>
-                      <Badge variant={disciplineProgress === 100 ? "default" : "secondary"}>
-                        {Math.round(disciplineProgress)}% concluído
-                      </Badge>
+                      <div className="text-right">
+                        <Badge variant={disciplineProgress === 100 ? "default" : "secondary"}>
+                          {Math.round(disciplineProgress)}% concluído
+                        </Badge>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          0h {/* Duration field doesn't exist in schema */}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-2">

@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_protected")({
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ context, location }) => {
     const { data: session } = await authClient.getSession();
 
     if (!session || !session.user) {
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_protected")({
         search: { redirect: location.href }
       });
     }
-    return { session };
+    return { ...context, session };
   },
   component: () => <Outlet />,
 });

@@ -2,7 +2,7 @@ import Header from "@/components/header";
 import Loader from "@/components/loader";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import type { trpc } from "@/utils/trpc";
+import type { trpc, trpcClient } from "@/utils/trpc";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
@@ -12,10 +12,13 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { StudyTimerRuntime } from "@/components/StudyTimerRuntime";
+import { StudyTimerWidget } from "@/components/StudyTimerWidget";
 import "../index.css";
 
 export interface RouterAppContext {
 	trpc: typeof trpc;
+  trpcClient: typeof trpcClient;
 	queryClient: QueryClient;
 }
 
@@ -62,6 +65,8 @@ function RootComponent() {
 			</ThemeProvider>
 			<TanStackRouterDevtools position="bottom-left" />
 			<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+      <StudyTimerRuntime />
+      <StudyTimerWidget />
 		</>
 	);
 }
