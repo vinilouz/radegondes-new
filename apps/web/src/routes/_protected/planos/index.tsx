@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, Target, CalendarIcon, Home } from "lucide-react";
+import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, ListTodo, CalendarIcon, Home } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +31,7 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
   const storeState = useStore(studyTimerStore);
 
   const formatCreatedAt = (date: Date | string) => {
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(date).toLocaleDateString("pt-BR", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -118,7 +118,7 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
           </div>
           <div className="study-stat flex-1 text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
             <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
-              <Target className="h-4 w-4" />
+              <ListTodo className="h-4 w-4" />
               {study.topicCount || 0}
             </div>
             <div className="study-stat-label text-xs text-muted-foreground uppercase">
@@ -132,14 +132,15 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
             {formatTime(studyTime)}
           </div>
           <div className="study-stat-label text-xs text-muted-foreground uppercase">
-            Tempo
+            Tempo de estudo
           </div>
         </div>
       </div>
 
       <div className="study-footer mt-auto p-4 pt-2">
-        <span className="text-xs text-muted-foreground">
-          <CalendarIcon /> Criado em {formatCreatedAt(study.createdAt)}
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <CalendarIcon className="h-3 w-3" />
+          Criado em {formatCreatedAt(study.createdAt)}
         </span>
       </div>
     </a>
@@ -194,7 +195,7 @@ function StudiesPage() {
   }
 
   const formatCreatedAt = (date: Date | string) => {
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(date).toLocaleDateString("pt-BR", {
       year: "numeric",
       month: "short",
       day: "numeric",

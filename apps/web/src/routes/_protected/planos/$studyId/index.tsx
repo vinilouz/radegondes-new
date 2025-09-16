@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Clock, BookOpen, MoreHorizontal, ChevronLeft } from "lucide-react";
+import { Plus, Trash2, BookOpen, MoreHorizontal, ChevronLeft, ListTodo, Timer } from "lucide-react";
 import { Breadcrumb } from '@/components/Breadcrumb';
 import {
   DropdownMenu,
@@ -247,37 +247,37 @@ function StudyDetailsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Disciplinas</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <Card className="bg-primary/10 border-primary/20 p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
+            <CardTitle className="text-sm font-medium text-popover-foreground uppercase">Disciplinas</CardTitle>
+            <BookOpen className="h-4 w-4 text-popover-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{disciplines.length}</div>
+          <CardContent className="p-0">
+            <div className="text-3xl font-bold text-primary">{disciplines.length}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tópicos</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+        <Card className="bg-primary/10 border-primary/20 p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
+            <CardTitle className="text-sm font-medium text-popover-foreground uppercase">Tópicos</CardTitle>
+            <ListTodo className="h-4 w-4 text-popover-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{topics.length}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-0">
+            <div className="text-3xl font-bold text-primary">{topics.length}</div>
+            <p className="text-xs text-popover-foreground/80">
               {completedTopics} concluídos
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tempo de Estudo</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+        <Card className="bg-primary/10 border-primary/20 p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
+            <CardTitle className="text-sm font-medium text-popover-foreground uppercase">Tempo Total</CardTitle>
+            <Timer className="h-4 w-4 text-popover-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatTime(totalStudyTime)}</div>
+          <CardContent className="p-0">
+            <div className="text-3xl font-bold text-primary">{formatTime(totalStudyTime)}</div>
           </CardContent>
         </Card>
       </div>
@@ -362,7 +362,7 @@ function StudyDetailsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {disciplines.map((discipline) => {
             const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);
             const disciplineTopicIds = disciplineTopics.map(topic => topic.id);
@@ -371,155 +371,101 @@ function StudyDetailsPage() {
             const disciplineProgress = disciplineTopics.length > 0 ? (completedDisciplineTopics / disciplineTopics.length) * 100 : 0;
 
             return (
-              <Card key={discipline.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{discipline.name}</CardTitle>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditDiscipline(discipline)}>
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteDiscipline(discipline.id)}
-                          className="text-destructive"
-                        >
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">
-                        {disciplineTopics.length} tópicos
-                      </span>
-                      <div className="text-right">
-                        <Badge variant={disciplineProgress === 100 ? "default" : "secondary"}>
-                          {Math.round(disciplineProgress)}% concluído
-                        </Badge>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {formatTime(disciplineTime)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm font-medium">Tópicos:</div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate({ to: `/planos/${studyId}/${discipline.id}` })}
-                          className="h-6 text-xs"
-                        >
-                          Ver todos →
-                        </Button>
-                      </div>
-                      {disciplineTopics.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Nenhum tópico adicionado</p>
-                      ) : (
-                        <div className="space-y-1">
-                          {disciplineTopics.slice(0, 3).map((topic) => (
-                            <div key={topic.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                              <div className="flex items-center space-x-2">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  topic.status === "completed" ? "bg-green-500" :
-                                  topic.status === "in_progress" ? "bg-yellow-500" : "bg-gray-300"
-                                }`} />
-                                {editingTopics[topic.id] !== undefined ? (
-                                  <Input
-                                    value={editingTopics[topic.id]}
-                                    onChange={(e) => setEditingTopics(prev => ({
-                                      ...prev,
-                                      [topic.id]: e.target.value
-                                    }))}
-                                    onBlur={() => {
-                                      if (editingTopics[topic.id] !== topic.name) {
-                                        handleUpdateTopic(topic.id, editingTopics[topic.id]);
-                                      } else {
-                                        setEditingTopics(prev => {
-                                          const newTopics = { ...prev };
-                                          delete newTopics[topic.id];
-                                          return newTopics;
-                                        });
-                                      }
-                                    }}
-                                    onKeyPress={(e) => {
-                                      if (e.key === "Enter") {
-                                        if (editingTopics[topic.id] !== topic.name) {
-                                          handleUpdateTopic(topic.id, editingTopics[topic.id]);
-                                        } else {
-                                          setEditingTopics(prev => {
-                                            const newTopics = { ...prev };
-                                            delete newTopics[topic.id];
-                                            return newTopics;
-                                          });
-                                        }
-                                      }
-                                    }}
-                                    className="h-6 text-xs"
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <span
-                                    className="text-sm cursor-pointer hover:text-primary"
-                                    onClick={() => startEditingTopic(topic.id, topic.name)}
-                                  >
-                                    {topic.name}
-                                  </span>
-                                )}
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteTopic(topic.id)}
-                                className="h-6 w-6 p-0"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))}
-                          {disciplineTopics.length > 3 && (
-                            <div className="text-xs text-muted-foreground text-center pt-1">
-                              +{disciplineTopics.length - 3} mais tópicos
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex space-x-2">
-                      <Input
-                        placeholder="PDF 1..."
-                        value={newTopicNames[discipline.id] || ""}
-                        onChange={(e) => setNewTopicNames(prev => ({ ...prev, [discipline.id]: e.target.value }))}
-                        onKeyPress={(e) => {
-                          if (e.key === "Enter") {
-                            handleCreateTopic(discipline.id);
-                          }
-                        }}
-                        className="flex-1"
-                      />
+              <Card
+                key={discipline.id}
+                className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer overflow-hidden flex flex-col no-underline"
+                onClick={() => navigate({ to: "/planos/$studyId/$disciplineId", params: { studyId, disciplineId: discipline.id } })}
+              >
+                <div className="absolute top-2 right-2 z-10">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
-                        size="sm"
-                        onClick={() => handleCreateTopic(discipline.id)}
-                        disabled={!(newTopicNames[discipline.id] || "").trim() || createTopicMutation.isPending}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
                       >
-                        <Plus className="h-4 w-4" />
+                        <MoreHorizontal className="h-4 w-4" />
                       </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => { e.stopPropagation(); }}>
+                      <DropdownMenuItem onClick={() => handleEditDiscipline(discipline)}>
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteDiscipline(discipline.id)}
+                        className="text-destructive"
+                      >
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <CardHeader className="pr-10">
+                  <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">
+                    {discipline.name}
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="flex-grow flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <ListTodo className="h-4 w-4" />
+                        Tópicos
+                      </span>
+                      <span className="font-semibold">{disciplineTopics.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Timer className="h-4 w-4" />
+                        Tempo de Estudo
+                      </span>
+                      <span className="font-semibold">{formatTime(disciplineTime)}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-semibold text-muted-foreground">Progresso</span>
+                      <span className="text-xs font-bold text-primary">{Math.round(disciplineProgress)}%</span>
+                    </div>
+                    <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${disciplineProgress}%` }}
+                      ></div>
                     </div>
                   </div>
                 </CardContent>
+
+                <div className="p-4 pt-2 mt-auto">
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Adicionar tópico..."
+                      value={newTopicNames[discipline.id] || ""}
+                      onChange={(e) => setNewTopicNames(prev => ({ ...prev, [discipline.id]: e.target.value }))}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") handleCreateTopic(discipline.id);
+                      }}
+                      onClick={(e) => { e.stopPropagation(); }}
+                      className="flex-1 h-9"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateTopic(discipline.id);
+                      }}
+                      disabled={!(newTopicNames[discipline.id] || "").trim() || createTopicMutation.isPending}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               </Card>
             );
           })}
