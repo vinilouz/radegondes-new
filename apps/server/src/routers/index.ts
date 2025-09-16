@@ -598,7 +598,7 @@ export const appRouter = router({
   updateTopicProgress: protectedProcedure
     .input(z.object({
       topicId: z.string(),
-      status: z.enum(["not_started", "in_progress", "completed"]).optional(),
+      status: z.enum(["not_started", "completed"]).optional(),
       correct: z.number().min(0).optional(),
       wrong: z.number().min(0).optional(),
       notes: z.string().optional(),

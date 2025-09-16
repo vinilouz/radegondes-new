@@ -6,7 +6,7 @@ UserFlow:
 Minha descrição personalizada
 
 tasks:
-- style widget timer 
+- status
 - header
 - mobile
 

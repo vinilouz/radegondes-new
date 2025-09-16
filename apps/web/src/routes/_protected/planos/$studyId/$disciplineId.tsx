@@ -14,6 +14,7 @@ import { trpc } from '@/utils/trpc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatTime } from '@/lib/utils';
 
 export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId')({
@@ -40,6 +41,7 @@ function DisciplinePage() {
   const [newTopicName, setNewTopicName] = useState("");
   const [editingTopic, setEditingTopic] = useState<{ id: string, name: string } | null>(null);
   const [studyTopic, setStudyTopic] = useState<typeof topics[0] | null>(null);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
   const topicSessionsQuery = useQuery({
     ...trpc.getTimeSessionsByTopic.queryOptions({ topicId: studyTopic?.id ?? '' }),
@@ -52,6 +54,15 @@ function DisciplinePage() {
       timerActions.loadTotals(topicIds);
     }
   }, [topics.map(t => t.id).join(',')]);
+
+  useEffect(() => {
+    if (studyTopic && studyTopic.correct + studyTopic.wrong > 0) {
+      const performance = (studyTopic.correct / (studyTopic.correct + studyTopic.wrong)) * 100;
+      if (performance === 100 && studyTopic.status !== 'completed') {
+        setShowCompletionDialog(true);
+      }
+    }
+  }, [studyTopic?.correct, studyTopic?.wrong, studyTopic?.status]);
 
   const totalDisciplineTime = useMemo(() => topics.map(t => t.id).reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0), [topics, storeState]);
   const completedTopics = useMemo(() => topics.filter(topic => topic.status === "completed").length, [topics]);
@@ -90,6 +101,7 @@ function DisciplinePage() {
     if (!studyTopic) return;
     updateTopicProgressMutation.mutate({
       topicId: studyTopic.id,
+      status: studyTopic.status as "not_started" | "completed",
       correct: studyTopic.correct,
       wrong: studyTopic.wrong,
       notes: studyTopic.notes || undefined
@@ -102,15 +114,22 @@ function DisciplinePage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="outline" className="border-success text-success"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
-      case 'in_progress':
-        return <Badge variant="outline" className="border-warning text-warning"><Loader className="h-3 w-3 mr-1 animate-spin" />Em progresso</Badge>;
-      default:
-        return null;
+  const handleAutoCompleteConfirm = () => {
+    if (studyTopic) {
+      setStudyTopic(prev => prev ? { ...prev, status: 'completed' } : null);
     }
+    setShowCompletionDialog(false);
+  };
+
+  const handleAutoCompleteDismiss = () => {
+    setShowCompletionDialog(false);
+  };
+
+  const getStatusBadge = (status: string) => {
+    if (status === 'completed') {
+      return <Badge variant="outline" className="border-success text-success"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
+    }
+    return null;
   }
 
   return (
@@ -302,6 +321,22 @@ function DisciplinePage() {
                 </div>
               </div>
 
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="topic-completed"
+                  checked={studyTopic.status === 'completed'}
+                  onCheckedChange={(checked) =>
+                    setStudyTopic(t => t ? {
+                      ...t,
+                      status: checked ? 'completed' : 'not_started'
+                    } : null)
+                  }
+                />
+                <Label htmlFor="topic-completed" className="text-sm font-medium cursor-pointer">
+                  Marcar como concluído
+                </Label>
+              </div>
+
               <div>
                 <Label className="text-sm font-medium">Anotações e Materiais</Label>
                 <Textarea
@@ -342,6 +377,25 @@ function DisciplinePage() {
             <Button variant="outline" onClick={() => setStudyTopic(null)}>Cancelar</Button>
             <Button onClick={handleUpdateTopicDetails} disabled={updateTopicProgressMutation.isPending}>
               {updateTopicProgressMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>🎉 Performance 100%!</DialogTitle>
+            <DialogDescription>
+              Parabéns! Você atingiu 100% de acertos neste tópico. Deseja marcar como concluído?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleAutoCompleteDismiss}>
+              Não, continuar estudando
+            </Button>
+            <Button onClick={handleAutoCompleteConfirm}>
+              Sim, marcar como concluído
             </Button>
           </DialogFooter>
         </DialogContent>
