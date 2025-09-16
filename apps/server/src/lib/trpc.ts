@@ -8,11 +8,10 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-	if (!ctx.session) {
+	if (!ctx.session || !ctx.session.user) {
 		throw new TRPCError({
 			code: "UNAUTHORIZED",
 			message: "Authentication required",
-			cause: "No session",
 		});
 	}
 	return next({
@@ -21,4 +20,9 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 			session: ctx.session,
 		},
 	});
+});
+
+export const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
+	console.log(`[${new Date().toISOString()}] tRPC ${type.toUpperCase()}: ${path}`);
+	return next();
 });
