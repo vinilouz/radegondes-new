@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, BookOpen, MoreHorizontal, ChevronLeft, ListTodo, Timer } from "lucide-react";
+import { Plus, Trash2, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer } from "lucide-react";
 import { Breadcrumb } from '@/components/Breadcrumb';
 import {
   DropdownMenu,
@@ -247,38 +247,35 @@ function StudyDetailsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
-        <Card className="bg-primary/10 border-primary/20 p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
-            <CardTitle className="text-sm font-medium text-popover-foreground uppercase">Disciplinas</CardTitle>
-            <BookOpen className="h-4 w-4 text-popover-foreground" />
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="text-3xl font-bold text-primary">{disciplines.length}</div>
-          </CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card className="flex flex-row items-center p-4 lg:p-6">
+          <div className="mr-4 lg:mr-6">
+            <BookOpen className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <div className="text-3xl font-bold">{disciplines.length}</div>
+            <p className="text-sm text-muted-foreground">Disciplinas</p>
+          </div>
         </Card>
 
-        <Card className="bg-primary/10 border-primary/20 p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
-            <CardTitle className="text-sm font-medium text-popover-foreground uppercase">Tópicos</CardTitle>
-            <ListTodo className="h-4 w-4 text-popover-foreground" />
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="text-3xl font-bold text-primary">{topics.length}</div>
-            <p className="text-xs text-popover-foreground/80">
-              {completedTopics} concluídos
-            </p>
-          </CardContent>
+        <Card className="flex flex-row items-center p-4 lg:p-6">
+          <div className="mr-4 lg:mr-6">
+            <BookCopy className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <div className="text-3xl font-bold">{topics.length}</div>
+            <p className="text-sm text-muted-foreground">Tópicos</p>
+          </div>
         </Card>
 
-        <Card className="bg-primary/10 border-primary/20 p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
-            <CardTitle className="text-sm font-medium text-popover-foreground uppercase">Tempo Total</CardTitle>
-            <Timer className="h-4 w-4 text-popover-foreground" />
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="text-3xl font-bold text-primary">{formatTime(totalStudyTime)}</div>
-          </CardContent>
+        <Card className="flex flex-row items-center p-4 lg:p-6">
+          <div className="mr-4 lg:mr-6">
+            <Timer className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <div className="text-3xl font-bold">{formatTime(totalStudyTime)}</div>
+            <p className="text-sm text-muted-foreground">Horas de Estudo</p>
+          </div>
         </Card>
       </div>
 
@@ -414,7 +411,7 @@ function StudyDetailsPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2 text-muted-foreground">
-                        <ListTodo className="h-4 w-4" />
+                        <BookCopy className="h-4 w-4" />
                         Tópicos
                       </span>
                       <span className="font-semibold">{disciplineTopics.length}</span>

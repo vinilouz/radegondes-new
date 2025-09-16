@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, ListTodo, CalendarIcon, Home } from "lucide-react";
+import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, BookCopy, CalendarIcon, Home } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -118,7 +118,7 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
           </div>
           <div className="study-stat flex-1 text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
             <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
-              <ListTodo className="h-4 w-4" />
+              <BookCopy className="h-4 w-4" />
               {study.topicCount || 0}
             </div>
             <div className="study-stat-label text-xs text-muted-foreground uppercase">

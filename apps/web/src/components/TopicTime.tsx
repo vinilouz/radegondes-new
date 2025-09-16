@@ -3,6 +3,7 @@ import { studyTimerStore, selectors, timerActions } from '@/store/studyTimerStor
 import { formatTime } from '@/lib/utils'
 import { Play, Square } from 'lucide-react'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 interface TopicTimeProps {
   topicId: string
@@ -57,9 +58,9 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId }:
       {/* Display do tempo */}
       <div className={`
         font-mono px-3 py-1.5 rounded-lg text-sm font-medium
-        ${isActive 
-          ? 'bg-green-500/20 text-green-700 dark:text-green-400 ring-2 ring-green-500/50' 
-          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}
+        ${isActive
+          ? 'bg-success/20 text-success ring-2 ring-success/50'
+          : 'bg-muted text-muted-foreground'}
       `}>
         {formatTime(totalTime)}
         {isActive && (
@@ -73,33 +74,31 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId }:
       {showButton && (
         <>
           {!hasAnySession && (
-            <button
+            <Button
               onClick={handleStart}
               disabled={isWorking}
-              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 
-                       disabled:bg-gray-400 disabled:cursor-not-allowed
-                       text-white rounded-lg text-sm font-medium transition-colors"
+              size="sm"
+              className="bg-success hover:bg-success/90 text-success-foreground"
             >
-              <Play className="h-3.5 w-3.5" />
+              <Play className="h-3.5 w-3.5 mr-1" />
               {isWorking ? 'Iniciando...' : 'Iniciar'}
-            </button>
+            </Button>
           )}
           
           {isActive && (
-            <button
+            <Button
               onClick={handleStop}
               disabled={isWorking}
-              className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700
-                       disabled:bg-gray-400 disabled:cursor-not-allowed
-                       text-white rounded-lg text-sm font-medium transition-colors"
+              size="sm"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
-              <Square className="h-3.5 w-3.5" />
+              <Square className="h-3.5 w-3.5 mr-1" />
               {isWorking ? 'Salvando...' : 'Parar'}
-            </button>
+            </Button>
           )}
           
           {hasAnySession && !isActive && (
-            <span className="text-xs text-gray-500 italic">
+            <span className="text-xs text-muted-foreground italic">
               Timer ativo em outro tópico
             </span>
           )}
