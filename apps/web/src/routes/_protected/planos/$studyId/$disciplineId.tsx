@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
 import { TopicTime } from '@/components/TopicTime';
-import { ChevronLeft, BookCopy, Timer, MoreHorizontal, Trash2, Plus, CheckCircle2, Loader, Circle, Edit, History, Link as LinkIcon, Minus, BarChart3 } from 'lucide-react';
+import { ChevronLeft, BookCopy, Timer, MoreHorizontal, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useEffect, useState, useMemo } from 'react';
@@ -38,7 +38,7 @@ function DisciplinePage() {
   const topics = topicsQuery.data ?? [];
 
   const [newTopicName, setNewTopicName] = useState("");
-  const [editingTopic, setEditingTopic] = useState<{id: string, name: string} | null>(null);
+  const [editingTopic, setEditingTopic] = useState<{ id: string, name: string } | null>(null);
   const [studyTopic, setStudyTopic] = useState<typeof topics[0] | null>(null);
 
   const topicSessionsQuery = useQuery({
@@ -106,14 +106,14 @@ function DisciplinePage() {
       case 'in_progress':
         return <Badge variant="outline" className="border-warning text-warning"><Loader className="h-3 w-3 mr-1 animate-spin" />Em progresso</Badge>;
       default:
-        return <Badge variant="outline"><Circle className="h-3 w-3 mr-1" />Não iniciado</Badge>;
+        return null;
     }
   }
 
   return (
     <div className="container mx-auto p-6">
       <Breadcrumb />
-      
+
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{discipline.name}</h1>
@@ -166,59 +166,79 @@ function DisciplinePage() {
           </div>
         </CardHeader>
         <CardContent>
-            <div className="grid gap-4">
-              {topicsQuery.isLoading ? (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <Loader className="mx-auto h-6 w-6 animate-spin text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Carregando tópicos...</p>
-                  </CardContent>
-                </Card>
-              ) : topics.map(topic => {
-                const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
-                return (
-                  <Card key={topic.id} className="group hover:shadow-md transition-all duration-200 cursor-pointer" onClick={() => setStudyTopic(topic)}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-semibold text-lg">{topic.name}</h3>
-                            {getStatusBadge(topic.status)}
-                          </div>
+          <div className="grid gap-4">
+            {topicsQuery.isLoading ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Loader className="mx-auto h-6 w-6 animate-spin text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Carregando tópicos...</p>
+                </CardContent>
+              </Card>
+            ) : topics.map(topic => {
+              const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
+              return (
+                <Card key={topic.id} className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer p-0" onClick={() => setStudyTopic(topic)}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <h3 className="font-semibold text-lg">{topic.name}</h3>
+                        {getStatusBadge(topic.status)}
+                      </div>
 
-                          <div className="flex items-center gap-6 text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">Questões:</span>
-                              <span className="font-semibold text-success">{topic.correct} C</span>
-                              <span className="text-muted-foreground">/</span>
-                              <span className="font-semibold text-destructive">{topic.wrong} E</span>
-                              <span className="text-muted-foreground">({performance.toFixed(0)}%)</span>
-                            </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
+                            title="Questões corretas - Clique para editar"
+                            onClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            {topic.correct}
+                          </div>
+                          <div
+                            className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/30 rounded-md text-sm font-semibold text-destructive cursor-pointer hover:bg-destructive/20 transition-all"
+                            title="Questões erradas - Clique para editar"
+                            onClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
+                          >
+                            <X className="h-4 w-4" />
+                            {topic.wrong}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="outline" size="sm" onClick={() => setStudyTopic(topic)} className="gap-2">
+                        <div
+                          className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/30 rounded-md text-sm font-semibold text-primary cursor-pointer hover:bg-primary/20 transition-all"
+                          title="Performance - Clique para editar"
+                          onClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
+                        >
+                          <Percent className="h-4 w-4" />
+                          {performance.toFixed(0)}
+                        </div>
+
+                        <TopicTime topicId={topic.id} disciplineId={discipline.id} studyId={discipline.studyId!} showButton={true} />
+
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(topic)} title="Editar">
                             <Edit className="h-4 w-4" />
-                            Editar
                           </Button>
-                          <TopicTime topicId={topic.id} disciplineId={discipline.id} studyId={discipline.studyId!} showButton={true} />
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTopic(topic.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTopic(topic.id)} title="Excluir">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-              {!topicsQuery.isLoading && topics.length === 0 && (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <Plus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground mb-4">Nenhum tópico adicionado ainda.</p>
+                    </div>
                   </CardContent>
                 </Card>
-              )}
-            </div>
+              )
+            })}
+            {!topicsQuery.isLoading && topics.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Plus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">Nenhum tópico adicionado ainda.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -237,13 +257,13 @@ function DisciplinePage() {
                 <div>
                   <Label className="text-sm font-medium">Questões Corretas</Label>
                   <div className="flex items-center gap-2 mt-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, correct: Math.max(0, t.correct - 1)} : null)}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, correct: Math.max(0, t.correct - 1) } : null)}>
                       <Minus className="h-4 w-4" />
                     </Button>
                     <div className="flex-1 text-center py-2 bg-success/10 text-success rounded border">
                       <span className="text-xl font-bold">{studyTopic.correct}</span>
                     </div>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, correct: t.correct + 1} : null)}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, correct: t.correct + 1 } : null)}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -252,13 +272,13 @@ function DisciplinePage() {
                 <div>
                   <Label className="text-sm font-medium">Questões Erradas</Label>
                   <div className="flex items-center gap-2 mt-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, wrong: Math.max(0, t.wrong - 1)} : null)}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, wrong: Math.max(0, t.wrong - 1) } : null)}>
                       <Minus className="h-4 w-4" />
                     </Button>
                     <div className="flex-1 text-center py-2 bg-destructive/10 text-destructive rounded border">
                       <span className="text-xl font-bold">{studyTopic.wrong}</span>
                     </div>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, wrong: t.wrong + 1} : null)}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, wrong: t.wrong + 1 } : null)}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -284,7 +304,7 @@ function DisciplinePage() {
                 <Textarea
                   placeholder="Adicione suas anotações, links de materiais, vídeos, etc."
                   value={studyTopic.notes ?? ''}
-                  onChange={(e) => setStudyTopic(t => t ? {...t, notes: e.target.value} : null)}
+                  onChange={(e) => setStudyTopic(t => t ? { ...t, notes: e.target.value } : null)}
                   rows={4}
                   className="mt-2"
                 />

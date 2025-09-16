@@ -60,7 +60,7 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId }:
         font-mono px-3 py-1.5 rounded-lg text-sm font-medium
         ${isActive
           ? 'bg-success/20 text-success ring-2 ring-success/50'
-          : 'bg-muted text-muted-foreground'}
+          : 'text-primary-foreground/75 bg-popover border'}
       `}>
         {formatTime(totalTime)}
         {isActive && (
