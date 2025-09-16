@@ -3,14 +3,18 @@ import { trpc } from "@/utils/trpc";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { trpcClient } from "@/utils/trpc";
+import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
+import { formatTime } from '@/lib/utils';
+import { useStore } from '@tanstack/react-store';
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, Target } from "lucide-react";
+import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, Target, CalendarIcon, Home } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +25,117 @@ import {
 export const Route = createFileRoute("/_protected/planos/")({
   component: StudiesPage,
 });
+
+function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigate: any; handleDeleteStudy: any }) {
+  const [studyTime, setStudyTime] = useState(0);
+  const storeState = useStore(studyTimerStore);
+
+  const formatCreatedAt = (date: Date | string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  }
+
+  useEffect(() => {
+    const fetchTopics = async () => {
+      const topics = await trpcClient.getTopics.query({ studyId: study.id });
+      const topicIds = topics.map((topic: any) => topic.id);
+
+      if (topicIds.length > 0) {
+        await timerActions.loadTotals(undefined, undefined, topicIds, trpcClient);
+        const time = selectors.getStudyTime(study.id, topicIds)(storeState);
+        setStudyTime(time);
+      }
+    };
+
+    fetchTopics();
+  }, [study.id, storeState]);
+
+  return (
+    <a
+      key={study.id}
+      className="study-card bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:translate-y-[-2px] cursor-pointer overflow-hidden flex flex-col min-h-[180px] no-underline"
+      href={`/planos/${study.id}`}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate({ to: "/planos/$studyId", params: { studyId: study.id } });
+      }}
+      draggable="true"
+    >
+      <div className="ellipsis-menu absolute top-2 right-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="ellipsis-button bg-transparent border-none text-muted-foreground hover:text-foreground p-1 rounded transition-colors">
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation()
+                handleDeleteStudy(study.id)
+              }}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="trash-icon absolute top-2 right-10 hidden">
+        <Trash2 className="h-4 w-4 text-destructive" />
+      </div>
+
+      <div className="study-header p-4 pb-2">
+        <h3 className="study-title text-lg font-bold text-card-foreground mb-0">
+          {study.name}
+        </h3>
+      </div>
+
+      <div className="study-stats p-4 pt-2 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="study-stat flex-1 text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
+            <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
+              <BookOpen className="h-4 w-4" />
+              {study.disciplineCount || 0}
+            </div>
+            <div className="study-stat-label text-xs text-muted-foreground uppercase">
+              Disciplinas
+            </div>
+          </div>
+          <div className="study-stat flex-1 text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
+            <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
+              <Target className="h-4 w-4" />
+              {study.topicCount || 0}
+            </div>
+            <div className="study-stat-label text-xs text-muted-foreground uppercase">
+              Tópicos
+            </div>
+          </div>
+        </div>
+        <div className="study-stat text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
+          <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
+            <Timer className="h-4 w-4" />
+            {formatTime(studyTime)}
+          </div>
+          <div className="study-stat-label text-xs text-muted-foreground uppercase">
+            Tempo
+          </div>
+        </div>
+      </div>
+
+      <div className="study-footer mt-auto p-4 pt-2">
+        <span className="text-xs text-muted-foreground">
+          <CalendarIcon /> Criado em {formatCreatedAt(study.createdAt)}
+        </span>
+      </div>
+    </a>
+  );
+}
 
 function StudiesPage() {
   const { isPending: authPending } = authClient.useSession();
@@ -33,6 +148,7 @@ function StudiesPage() {
 
   const studiesQuery = useQuery(trpc.getStudies.queryOptions());
 
+  
   const createStudyMutation = useMutation({
     ...trpc.createStudy.mutationOptions(),
     onSuccess: (data: any) => {
@@ -109,6 +225,8 @@ function StudiesPage() {
 
   return (
     <div className="container mx-auto p-6">
+
+      {/* Row 2: Title & description | back btn */}
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Estudos</h1>
@@ -208,86 +326,12 @@ function StudiesPage() {
       ) : (
         <div className="studies-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {studiesQuery.data?.map((study) => (
-            <a
+            <StudyCard
               key={study.id}
-              className="study-card bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:translate-y-[-2px] cursor-pointer overflow-hidden flex flex-col min-h-[180px] no-underline"
-              href={`/planos/${study.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate({ to: "/planos/$studyId", params: { studyId: study.id } });
-              }}
-              draggable="true"
-            >
-              <div className="ellipsis-menu absolute top-2 right-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="ellipsis-button bg-transparent border-none text-muted-foreground hover:text-foreground p-1 rounded transition-colors">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteStudy(study.id)
-                      }}
-                      className="text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              <div className="trash-icon absolute top-2 right-10 hidden">
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </div>
-
-              <div className="study-header p-4 pb-2">
-                <h3 className="study-title text-lg font-bold text-card-foreground mb-0">
-                  {study.name}
-                </h3>
-              </div>
-
-              <div className="study-stats p-4 pt-2 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="study-stat flex-1 text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
-                    <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
-                      <BookOpen className="h-4 w-4" />
-                      {study.disciplineCount || 0}
-                    </div>
-                    <div className="study-stat-label text-xs text-muted-foreground uppercase">
-                      Disciplinas
-                    </div>
-                  </div>
-                  <div className="study-stat flex-1 text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
-                    <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
-                      <Target className="h-4 w-4" />
-                      {study.topicCount || 0}
-                    </div>
-                    <div className="study-stat-label text-xs text-muted-foreground uppercase">
-                      Tópicos
-                    </div>
-                  </div>
-                </div>
-                <div className="study-stat text-center rounded-[6px] p-[14px_8px] bg-primary/10 border border-primary/20">
-                  <div className="study-stat-value text-xl font-bold mb-1 flex items-center justify-center gap-1 text-primary">
-                    <Timer className="h-4 w-4" />
-                    0h
-                  </div>
-                  <div className="study-stat-label text-xs text-muted-foreground uppercase">
-                    Tempo
-                  </div>
-                </div>
-              </div>
-
-              <div className="study-footer mt-auto p-4 pt-2">
-                <span className="text-xs text-muted-foreground">
-                  Criado em {formatCreatedAt(study.createdAt)}
-                </span>
-              </div>
-            </a>
+              study={study}
+              navigate={navigate}
+              handleDeleteStudy={handleDeleteStudy}
+            />
           ))}
         </div>
       )}

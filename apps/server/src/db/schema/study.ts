@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
 export const study = pgTable("study", {
@@ -46,4 +46,8 @@ export const timeSession = pgTable("time_session", {
 	duration: integer("duration").notNull().default(0),
 	sessionType: text("session_type").notNull().default("study"),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+	idxTopicId: index("idx_time_session_topic_id").on(table.topicId),
+	idxDuration: index("idx_time_session_duration").on(table.duration),
+	idxTopicIdDuration: index("idx_time_session_topic_id_duration").on(table.topicId, table.duration),
+}));

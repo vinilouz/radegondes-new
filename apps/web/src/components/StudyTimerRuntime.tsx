@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { studyTimerStore, timerActions, selectors } from '@/store/studyTimerStore'
 import { useStore } from '@tanstack/react-store'
 import { trpcClient } from '@/utils/trpc'
@@ -12,6 +12,7 @@ export function StudyTimerRuntime() {
   const lastTickRef = useRef<number | null>(null)
   const autosaveAccumRef = useRef(0)
   const bcRef = useRef<BroadcastChannel | null>(null)
+  const pendingHeartbeatsRef = useRef<Array<{ sessionId: string; deltaMs: number; reason: string }>>([])
 
   // BroadcastChannel para coordenar multiabas
   useEffect(() => {
@@ -51,6 +52,24 @@ export function StudyTimerRuntime() {
     return () => clearInterval(interval)
   }, [activeSession?.sessionId])
 
+  // Cleanup de pendentes no unmount
+  useEffect(() => {
+    return () => {
+      // Cancela pendentes ao desmontar
+      pendingHeartbeatsRef.current.forEach(heartbeat => {
+        try {
+          trpcClient.timer.heartbeat.mutate({
+            sessionId: heartbeat.sessionId,
+            deltaMs: heartbeat.deltaMs
+          }).catch(() => {})
+        } catch {
+          // Ignora erros de cleanup
+        }
+      })
+      pendingHeartbeatsRef.current = []
+    }
+  }, [])
+
   // Page Visibility + Beacon para flush
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -81,7 +100,13 @@ export function StudyTimerRuntime() {
     )
 
     if (!success) {
-        trpcClient.timer.heartbeat.mutate(payload).catch(() => {});
+      // Adiciona à lista de pendentes se beacon falhar
+      pendingHeartbeatsRef.current.push(payload)
+
+      // Limpa pendentes antigos (máximo 10 pendentes)
+      if (pendingHeartbeatsRef.current.length > 10) {
+        pendingHeartbeatsRef.current = pendingHeartbeatsRef.current.slice(-10)
+      }
     }
 
     autosaveAccumRef.current = 0

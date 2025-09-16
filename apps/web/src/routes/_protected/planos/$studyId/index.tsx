@@ -1,8 +1,11 @@
 import { authClient } from "@/lib/auth-client";
-import { trpc } from "@/utils/trpc";
+import { trpc, trpcClient } from "@/utils/trpc";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
+import { formatTime } from '@/lib/utils';
+import { useStore } from '@tanstack/react-store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Clock, BookOpen, MoreHorizontal } from "lucide-react";
+import { Plus, Trash2, Clock, BookOpen, MoreHorizontal, ChevronLeft } from "lucide-react";
+import { Breadcrumb } from '@/components/Breadcrumb';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +42,16 @@ function StudyDetailsPage() {
   const studyQuery = useQuery(trpc.getStudy.queryOptions({ id: studyId }));
   const disciplinesQuery = useQuery(trpc.getDisciplines.queryOptions({ studyId }));
   const topicsQuery = useQuery(trpc.getTopics.queryOptions({ studyId }));
+
+  const allTopicIds = topicsQuery.data?.map(topic => topic.id) || [];
+  const storeState = useStore(studyTimerStore);
+
+  // Load study totals - otimizado para evitar loops
+  useEffect(() => {
+    if (allTopicIds.length > 0) {
+      timerActions.loadTotals(studyId, undefined, allTopicIds, trpcClient);
+    }
+  }, [studyId, allTopicIds.join(',')]); // Usa join como dependência para evitar mudanças de referência
 
   const createDisciplineMutation = useMutation({
     ...trpc.createDiscipline.mutationOptions(),
@@ -159,18 +173,6 @@ function StudyDetailsPage() {
     });
   };
 
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-      return `${minutes}m`;
-    }
-    return "0m";
-  };
-
   if (authPending || studyQuery.isLoading) {
     return (
       <div className="container mx-auto p-6">
@@ -216,11 +218,14 @@ function StudyDetailsPage() {
   const disciplines = disciplinesQuery.data || [];
   const topics = topicsQuery.data || [];
 
-  const totalStudyTime = 0; // Duration field doesn't exist in schema
+  const totalStudyTime = selectors.getStudyTime(studyId, allTopicIds)(storeState);
   const completedTopics = topics.filter(topic => topic.status === "completed").length;
 
   return (
     <div className="container mx-auto p-6">
+      <Breadcrumb />
+
+      {/* Row 2: Title & description | back btn */}
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{study.name}</h1>
@@ -235,7 +240,9 @@ function StudyDetailsPage() {
         <Button
           variant="outline"
           onClick={() => navigate({ to: "/planos" })}
+          className="flex items-center gap-2"
         >
+          <ChevronLeft className="h-4 w-4" />
           Voltar
         </Button>
       </div>
@@ -270,7 +277,7 @@ function StudyDetailsPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatDuration(totalStudyTime)}</div>
+            <div className="text-2xl font-bold">{formatTime(totalStudyTime)}</div>
           </CardContent>
         </Card>
       </div>
@@ -358,6 +365,8 @@ function StudyDetailsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {disciplines.map((discipline) => {
             const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);
+            const disciplineTopicIds = disciplineTopics.map(topic => topic.id);
+            const disciplineTime = selectors.getDisciplineTime(discipline.id, disciplineTopicIds)(storeState);
             const completedDisciplineTopics = disciplineTopics.filter(topic => topic.status === "completed").length;
             const disciplineProgress = disciplineTopics.length > 0 ? (completedDisciplineTopics / disciplineTopics.length) * 100 : 0;
 
@@ -399,7 +408,7 @@ function StudyDetailsPage() {
                           {Math.round(disciplineProgress)}% concluído
                         </Badge>
                         <div className="text-xs text-muted-foreground mt-1">
-                          0h {/* Duration field doesn't exist in schema */}
+                          {formatTime(disciplineTime)}
                         </div>
                       </div>
                     </div>

@@ -5,6 +5,20 @@ import { timeSession, topic, discipline, study } from "../db/schema/study";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
+// Cache para getTotals endpoint (TTL de 30 segundos)
+const getTotalsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 30000; // 30 segundos
+
+// Limpa cache periodicamente
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of getTotalsCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      getTotalsCache.delete(key);
+    }
+  }
+}, 60000); // Limpa a cada minuto
+
 export const timerRouter = router({
   startSession: protectedProcedure
     .input(
@@ -95,6 +109,16 @@ export const timerRouter = router({
         };
       }
 
+      // Gera chave de cache
+      const cacheKey = JSON.stringify({ studyId: input.studyId, disciplineIds: input.disciplineIds, topicIds: input.topicIds });
+
+      // Verifica cache primeiro
+      const cached = getTotalsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.data;
+      }
+
+      // Query otimizada com indexes
       const totals = await db
         .select({
           topicId: timeSession.topicId,
@@ -108,34 +132,47 @@ export const timerRouter = router({
         totals.map((t) => [t.topicId, t.totalDuration])
       );
 
-      // To calculate discipline and study totals, we need the hierarchy
+      // Query otimizada para hierarquia (evita joins quando possível)
+      const topicIdsSet = new Set(input.topicIds);
       const topicsWithHierarchy = await db
         .select({
-          topicId: topic.id,
+          id: topic.id,
           disciplineId: topic.disciplineId,
           studyId: discipline.studyId,
         })
         .from(topic)
         .innerJoin(discipline, eq(topic.disciplineId, discipline.id))
-        .where(inArray(topic.id, input.topicIds));
+        .where(inArray(topic.id, input.topicIds))
+        .limit(1000); // Limite para evitar queries muito grandes
 
       const disciplineTotals: Record<string, number> = {};
       const studyTotals: Record<string, number> = {};
 
+      // Calcula totais de forma otimizada
       for (const t of topicsWithHierarchy) {
-        const topicTime = topicTotalsMap[t.topicId] || 0;
-        if (t.disciplineId) {
-          disciplineTotals[t.disciplineId] = (disciplineTotals[t.disciplineId] || 0) + topicTime;
-        }
-        if (t.studyId) {
-          studyTotals[t.studyId] = (studyTotals[t.studyId] || 0) + topicTime;
+        if (topicIdsSet.has(t.id)) {
+          const topicTime = topicTotalsMap[t.id] || 0;
+          if (t.disciplineId) {
+            disciplineTotals[t.disciplineId] = (disciplineTotals[t.disciplineId] || 0) + topicTime;
+          }
+          if (t.studyId) {
+            studyTotals[t.studyId] = (studyTotals[t.studyId] || 0) + topicTime;
+          }
         }
       }
 
-      return {
+      const result = {
         topicTotals: topicTotalsMap,
         disciplineTotals,
         studyTotals,
       };
+
+      // Cacheia resultado
+      getTotalsCache.set(cacheKey, {
+        data: result,
+        timestamp: Date.now(),
+      });
+
+      return result;
     }),
 });
