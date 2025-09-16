@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { trpc } from '@/utils/trpc';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatTime } from '@/lib/utils';
 
 export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId')({
@@ -33,7 +34,7 @@ function DisciplinePage() {
   const queryClient = useQueryClient();
 
   const [newTopicName, setNewTopicName] = useState("");
-  const [editingTopic, setEditingTopic] = useState<{id: string, name: string} | null>(null);
+  const [setEditingTopic] = useState<{id: string, name: string} | null>(null);
   const [studyTopic, setStudyTopic] = useState<typeof topics[0] | null>(null);
 
   const topicSessionsQuery = useQuery({
@@ -83,11 +84,6 @@ function DisciplinePage() {
     createTopicMutation.mutate({ disciplineId: discipline.id, name: newTopicName });
   };
 
-  const handleUpdateTopicName = () => {
-    if (!editingTopic || !editingTopic.name.trim()) return;
-    updateTopicMutation.mutate({ topicId: editingTopic.id, name: editingTopic.name });
-  };
-
   const handleUpdateTopicDetails = () => {
     if (!studyTopic) return;
     updateTopicMutation.mutate({ topicId: studyTopic.id, name: studyTopic.name });
@@ -114,7 +110,7 @@ function DisciplinePage() {
     <div className="container mx-auto p-6">
       <Breadcrumb />
       
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{discipline.name}</h1>
           <p className="text-muted-foreground mt-2">Acompanhe e gerencie seus tópicos de estudo.</p>
@@ -156,125 +152,163 @@ function DisciplinePage() {
           </div>
         </Card>
       </div>
-      
-      <Dialog>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold">Lista de Tópicos</CardTitle>
-            <div className="flex space-x-2 pt-4">
-              <Input placeholder="Adicionar novo tópico..." value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
-              <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">Lista de Tópicos</CardTitle>
+          <div className="flex space-x-2 pt-4">
+            <Input placeholder="Adicionar novo tópico..." value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
+            <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+            <div className="grid gap-4">
               {topics.map(topic => {
                 const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
                 return (
-                  <div key={topic.id} className="group flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg hover:bg-muted">
-                    <div className="flex-1 mb-2 md:mb-0">
-                      <h3 className="font-semibold text-md">{topic.name}</h3>
-                      <div className="flex items-center gap-4 mt-1">
-                        {getStatusBadge(topic.status)}
-                        <span className="text-xs text-muted-foreground">{formatTime(selectors.getTopicTime(topic.id)(storeState))}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                      <div className="flex-1 flex items-center justify-center text-xs text-center">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-success">{topic.correct} C</span>
-                          <span>/</span>
-                          <span className="font-bold text-destructive">{topic.wrong} E</span>
+                  <Card key={topic.id} className="group hover:shadow-md transition-all duration-200 cursor-pointer" onClick={() => setStudyTopic(topic)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-semibold text-lg">{topic.name}</h3>
+                            {getStatusBadge(topic.status)}
+                          </div>
+
+                          <div className="flex items-center gap-6 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Questões:</span>
+                              <span className="font-semibold text-success">{topic.correct} C</span>
+                              <span className="text-muted-foreground">/</span>
+                              <span className="font-semibold text-destructive">{topic.wrong} E</span>
+                              <span className="text-muted-foreground">({performance.toFixed(0)}%)</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="w-px h-5 bg-border mx-3"></div>
-                        <div>{performance.toFixed(0)}%</div>
+
+                        <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" onClick={() => setStudyTopic(topic)} className="gap-2">
+                            <Edit className="h-4 w-4" />
+                            Editar
+                          </Button>
+                          <TopicTime topicId={topic.id} disciplineId={discipline.id} studyId={discipline.studyId!} showButton={true} />
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTopic(topic.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
                       </div>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => setStudyTopic(topic)}>Detalhes</Button>
-                      </DialogTrigger>
-                      <TopicTime topicId={topic.id} disciplineId={discipline.id} studyId={discipline.studyId!} showButton={true} />
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTopic(topic.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 )
               })}
-              {topics.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground mb-4">Nenhum tópico adicionado ainda.</p></div>}
+              {topics.length === 0 && (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <ListTodo className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-4">Nenhum tópico adicionado ainda.</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
 
+      <Dialog open={!!studyTopic} onOpenChange={() => setStudyTopic(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{studyTopic?.name}</DialogTitle>
-            <DialogDescription>Gerencie sua sessão de estudo para este tópico.</DialogDescription>
+            <DialogDescription>
+              Gerencie questões, status e anotações de estudo
+            </DialogDescription>
           </DialogHeader>
+
           {studyTopic && (
-            <Tabs defaultValue="details">
-              <TabsList>
-                <TabsTrigger value="details">Detalhes</TabsTrigger>
-                <TabsTrigger value="history">Histórico</TabsTrigger>
-              </TabsList>
-              <TabsContent value="details" className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Questões</h4>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 p-2 border rounded-lg flex items-center justify-between">
-                        <span className="text-sm text-success">Corretas</span>
-                        <div className="flex items-center gap-1">
-                          <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => setStudyTopic(t => t ? {...t, correct: t.correct - 1} : null)}><Minus className="h-3 w-3" /></Button>
-                          <span className="font-bold text-lg w-8 text-center">{studyTopic.correct}</span>
-                          <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => setStudyTopic(t => t ? {...t, correct: t.correct + 1} : null)}><Plus className="h-3 w-3" /></Button>
-                        </div>
-                      </div>
-                      <div className="flex-1 p-2 border rounded-lg flex items-center justify-between">
-                        <span className="text-sm text-destructive">Erradas</span>
-                        <div className="flex items-center gap-1">
-                          <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => setStudyTopic(t => t ? {...t, wrong: t.wrong - 1} : null)}><Minus className="h-3 w-3" /></Button>
-                          <span className="font-bold text-lg w-8 text-center">{studyTopic.wrong}</span>
-                          <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => setStudyTopic(t => t ? {...t, wrong: t.wrong + 1} : null)}><Plus className="h-3 w-3" /></Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Status</h4>
-                     <select value={studyTopic.status} onChange={(e) => setStudyTopic(t => t ? {...t, status: e.target.value} : null)} className="w-full p-2 border rounded-lg bg-background">
-                        <option value="not_started">Não iniciado</option>
-                        <option value="in_progress">Em progresso</option>
-                        <option value="completed">Concluído</option>
-                     </select>
-                  </div>
-                </div>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="font-semibold mb-2">Anotações, Materiais e Links</h4>
-                  <Textarea 
-                    placeholder="Use este espaço para suas anotações, links de materiais, vídeos, etc."
-                    value={studyTopic.notes ?? ''} 
-                    onChange={(e) => setStudyTopic(t => t ? {...t, notes: e.target.value} : null)}
-                    rows={8}
-                  />
+                  <Label className="text-sm font-medium">Questões Corretas</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, correct: Math.max(0, t.correct - 1)} : null)}>
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1 text-center py-2 bg-success/10 text-success rounded border">
+                      <span className="text-xl font-bold">{studyTopic.correct}</span>
+                    </div>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, correct: t.correct + 1} : null)}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </TabsContent>
-              <TabsContent value="history">
-                {topicSessionsQuery.isLoading && <p>Carregando histórico...</p>}
-                {topicSessionsQuery.data && (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+
+                <div>
+                  <Label className="text-sm font-medium">Questões Erradas</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, wrong: Math.max(0, t.wrong - 1)} : null)}>
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1 text-center py-2 bg-destructive/10 text-destructive rounded border">
+                      <span className="text-xl font-bold">{studyTopic.wrong}</span>
+                    </div>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? {...t, wrong: t.wrong + 1} : null)}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Performance</Label>
+                <div className="mt-2 p-3 bg-muted rounded-lg text-center">
+                  <span className="text-xl font-bold text-primary">
+                    {studyTopic.correct + studyTopic.wrong > 0
+                      ? Math.round((studyTopic.correct / (studyTopic.correct + studyTopic.wrong)) * 100)
+                      : 0}%
+                  </span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {studyTopic.correct + studyTopic.wrong} questões respondidas
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Anotações e Materiais</Label>
+                <Textarea
+                  placeholder="Adicione suas anotações, links de materiais, vídeos, etc."
+                  value={studyTopic.notes ?? ''}
+                  onChange={(e) => setStudyTopic(t => t ? {...t, notes: e.target.value} : null)}
+                  rows={4}
+                  className="mt-2"
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Histórico de Sessões</Label>
+                {topicSessionsQuery.isLoading ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-muted-foreground">Carregando histórico...</p>
+                  </div>
+                ) : topicSessionsQuery.data && topicSessionsQuery.data.length > 0 ? (
+                  <div className="space-y-2 max-h-32 overflow-y-auto mt-2">
                     {topicSessionsQuery.data.map(session => (
-                      <div key={session.id} className="flex justify-between items-center p-2 rounded-lg bg-muted">
+                      <div key={session.id} className="flex justify-between items-center p-2 bg-muted rounded-lg">
                         <span className="text-sm">{new Date(session.startTime).toLocaleString('pt-BR')}</span>
-                        <span className="text-sm font-bold">{formatTime(session.duration)}</span>
+                        <span className="text-sm font-mono font-bold">{formatTime(session.duration)}</span>
                       </div>
                     ))}
-                    {topicSessionsQuery.data.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma sessão de estudo registrada para este tópico.</p>}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 mt-2">
+                    <History className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Nenhuma sessão registrada</p>
                   </div>
                 )}
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setStudyTopic(null)}>Cancelar</Button>
-            <Button onClick={handleUpdateTopicDetails} disabled={updateTopicMutation.isPending}>Salvar Alterações</Button>
+            <Button onClick={handleUpdateTopicDetails} disabled={updateTopicMutation.isPending}>
+              {updateTopicMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
