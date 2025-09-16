@@ -65,14 +65,12 @@ function DisciplinePage() {
     },
   });
 
-  const updateTopicMutation = useMutation({
-    ...trpc.updateTopic.mutationOptions(),
-    onSuccess: (data) => {
+
+  const updateTopicProgressMutation = useMutation({
+    ...trpc.updateTopicProgress.mutationOptions(),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.getTopicsByDiscipline.queryKey({ disciplineId: discipline.id }) });
-      if (studyTopic && data && studyTopic.id === data.id) {
-        setStudyTopic(data);
-      }
-      setEditingTopic(null);
+      setStudyTopic(null);
     },
   });
 
@@ -90,7 +88,12 @@ function DisciplinePage() {
 
   const handleUpdateTopicDetails = () => {
     if (!studyTopic) return;
-    updateTopicMutation.mutate({ topicId: studyTopic.id, name: studyTopic.name });
+    updateTopicProgressMutation.mutate({
+      topicId: studyTopic.id,
+      correct: studyTopic.correct,
+      wrong: studyTopic.wrong,
+      notes: studyTopic.notes || undefined
+    });
   }
 
   const handleDeleteTopic = (topicId: string) => {
@@ -178,7 +181,7 @@ function DisciplinePage() {
               const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
               return (
                 <Card key={topic.id} className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer p-0" onClick={() => setStudyTopic(topic)}>
-                  <CardContent className="p-4">
+                  <CardContent className="p-6">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <h3 className="font-semibold text-lg">{topic.name}</h3>
@@ -337,8 +340,8 @@ function DisciplinePage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setStudyTopic(null)}>Cancelar</Button>
-            <Button onClick={handleUpdateTopicDetails} disabled={updateTopicMutation.isPending}>
-              {updateTopicMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+            <Button onClick={handleUpdateTopicDetails} disabled={updateTopicProgressMutation.isPending}>
+              {updateTopicProgressMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
         </DialogContent>
