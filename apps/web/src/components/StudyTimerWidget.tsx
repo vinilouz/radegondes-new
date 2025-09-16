@@ -2,7 +2,7 @@ import { useStore } from '@tanstack/react-store'
 import { studyTimerStore, selectors, timerActions } from '@/store/studyTimerStore'
 import { formatTime } from '@/lib/utils'
 import { X, Square, Timer, ExternalLink } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { useNavigate } from '@tanstack/react-router'
@@ -29,6 +29,12 @@ export function StudyTimerWidget() {
   })
 
   const currentTopic = topicsQuery.data?.find(topic => topic.id === activeSession?.topicId)
+
+  useEffect(() => {
+    if (activeSession) {
+      setIsStopping(false)
+    }
+  }, [activeSession?.sessionId])
 
   if (!activeSession) return null
 
