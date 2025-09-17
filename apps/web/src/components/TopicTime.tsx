@@ -23,10 +23,11 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId }:
   const isActive = activeSession?.topicId === topicId
   const hasAnySession = !!activeSession
   
-  const handleStart = async () => {
+  const handleStart = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (isWorking) return
     setIsWorking(true)
-    
+
     try {
       await timerActions.startSession(topicId, disciplineId, studyId)
     } catch (error) {
@@ -36,11 +37,12 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId }:
       setIsWorking(false)
     }
   }
-  
-  const handleStop = async () => {
+
+  const handleStop = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (isWorking) return
     setIsWorking(true)
-    
+
     try {
       await timerActions.stopSession()
       // Força reload dos totais após parar
@@ -54,7 +56,7 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId }:
   }
   
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
       {/* Display do tempo */}
       <div className={`
         font-mono px-3 py-1.5 rounded-lg text-sm font-medium
