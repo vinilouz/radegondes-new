@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
 import { TopicTime } from '@/components/TopicTime';
-import { ChevronLeft, BookCopy, Timer, MoreHorizontal, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent } from 'lucide-react';
+import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useEffect, useState, useMemo } from 'react';
