@@ -718,6 +718,17 @@ export const appRouter = router({
         disciplineStats[discipline].sessions += 1;
       });
 
+      // Matriz de calor: dias da semana x horas do dia
+      const weekHourMatrix: number[][] = Array(7).fill(null).map(() => Array(24).fill(0));
+      const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+      sessions.forEach(session => {
+        const date = new Date(session.date);
+        const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+        const hour = date.getHours();
+        weekHourMatrix[dayOfWeek][hour] += session.duration;
+      });
+
       const result = {
         dailyData: Object.entries(dailyData).map(([date, duration]) => ({
           date,
@@ -732,6 +743,14 @@ export const appRouter = router({
           name,
           ...stats,
         })).sort((a, b) => b.time - a.time),
+        weekHourMatrix: weekHourMatrix.map((day, dayIndex) => ({
+          day: weekDays[dayIndex],
+          hours: day.map((duration, hourIndex) => ({
+            hour: hourIndex,
+            duration: duration,
+            minutes: Math.round(duration / 1000 / 60 * 10) / 10
+          }))
+        }))
       };
 
       console.log('=== FINAL RESULT ===');

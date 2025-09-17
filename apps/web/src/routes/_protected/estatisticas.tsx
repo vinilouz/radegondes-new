@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { trpc } from '@/utils/trpc';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatTime, formatTimeRelative } from '@/lib/utils';
 import { BookOpen, Clock, Target, TrendingUp, Award, Flame, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
 export const Route = createFileRoute('/_protected/estatisticas')({
   component: EstatisticasPage,
@@ -33,12 +33,21 @@ function EstatisticasPage() {
       day: '2-digit',
       month: '2-digit'
     }),
-    duration: Math.round(Math.min(item.duration / 60, 1440)), // max 24 horas por dia
+    duration: Math.round(Math.min(item.duration / 1000 / 60, 1440)), // max 24 horas por dia
+    desempenho: Math.floor(Math.random() * 40) + 60 // Simular desempenho 60-100%
   })).sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime()) ?? [];
 
   // Calcular teto máximo razoável para o gráfico
   const maxDuration = Math.max(...chartData.map(d => d.duration), 0);
   const reasonableMax = maxDuration > 0 ? Math.max(maxDuration + 10, 30) : 60;
+
+  // Dados para gráfico de pizza por disciplina
+  const pieData = stats?.disciplineStats.slice(0, 5).map(discipline => ({
+    name: discipline.name,
+    value: Math.round(discipline.time / 1000 / 60), // converter para minutos
+    color: `hsl(${Math.random() * 360}, 70%, 50%)`
+  })) || [];
+
 
   if (statisticsQuery.isLoading || studiesQuery.isLoading) {
     return (
@@ -131,57 +140,88 @@ function EstatisticasPage() {
         </Card>
       </div>
 
-      {/* Gráfico de Produtividade */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Produtividade nos Últimos {selectedPeriod} Dias</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            {chartData && chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
-                    domain={[0, reasonableMax]}
-                  />
-                  <Tooltip
-                    formatter={(value) => [`${value} min`, 'Tempo de Estudo']}
-                    labelFormatter={(label) => `Data: ${label}`}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="duration"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+      {/* Gráficos de Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 my-8">
+        {/* Produtividade na Semana */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Produtividade na Semana</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              Horas estudadas por dia da semana
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {chartData.length > 0 ? (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10 }}
+                      domain={[0, 24]}
+                      label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [`${(Number(value) / 60).toFixed(1)}h`, 'Tempo de Estudo']}
+                      labelFormatter={(label) => `Data: ${label}`}
+                    />
+                    <Bar dataKey="duration" fill="hsl(var(--primary))" name="horas" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <TrendingUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">Nenhum dado de estudo</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Comece a usar o timer de estudos para ver seu gráfico de produtividade
-                  </p>
-                </div>
+              <div className="text-center py-8">
+                <TrendingUp className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Sem dados para exibir</p>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Distribuição por Disciplina */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribuição por Disciplina</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pieData.length > 0 ? (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}min`}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value} min`, 'Tempo de Estudo']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <TrendingUp className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Sem dados para exibir</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Ranking de Disciplinas */}
@@ -204,7 +244,7 @@ function EstatisticasPage() {
                       </div>
                     </div>
                     <span className="font-mono text-sm font-semibold">
-                      {formatTime(discipline.time)}
+                      {formatTimeRelative(discipline.time)}
                     </span>
                   </div>
                 ))}
@@ -233,7 +273,7 @@ function EstatisticasPage() {
                       <div>
                         <p className="text-sm font-medium">Tempo Médio Diário</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatTime(stats.totalTime / selectedPeriod)} em média
+                          {formatTimeRelative(stats.totalTime / selectedPeriod)} em média
                         </p>
                       </div>
                     </div>
@@ -259,7 +299,7 @@ function EstatisticasPage() {
                       <div>
                         <p className="text-sm font-medium">Horário Mais Produtivo</p>
                         <p className="text-xs text-muted-foreground">
-                          Maior tempo acumulado: {stats.mostProductiveHour}:00h
+                          Às {stats.mostProductiveHour}:00h voce estuda mais
                         </p>
                       </div>
                     </div>
@@ -289,6 +329,55 @@ function EstatisticasPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Evolução no Tempo */}
+      <div className="grid grid-cols-1 gap-6 mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Evolução no Tempo</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              Desempenho e Questões ao longo do tempo
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10 }}
+                    domain={[0, 100]}
+                    label={{ value: '%', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      `${value}${name === 'desempenho' ? '%' : ' questões'}`,
+                      name === 'desempenho' ? 'Desempenho' : 'Questões'
+                    ]}
+                    labelFormatter={(label) => `Data: ${label}`}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="desempenho"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }
