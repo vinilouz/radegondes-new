@@ -2,7 +2,7 @@ import { protectedProcedure, publicProcedure, router, loggerMiddleware } from ".
 import { timerRouter } from "./timer";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
-import { eq, and, desc, count, sum } from "drizzle-orm";
+import { eq, and, desc, count, sum, gte } from "drizzle-orm";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -636,6 +636,112 @@ export const appRouter = router({
         .returning();
 
       return updated[0];
+    }),
+
+  getStudyStatistics: protectedProcedure
+    .input(z.object({
+      days: z.number().min(7).max(365).default(30),
+    }))
+    .query(async ({ ctx, input }) => {
+      console.log('=== DEBUG getStudyStatistics ===');
+      console.log('UserId:', ctx.session.user.id);
+      console.log('Days:', input.days);
+      const userId = ctx.session.user.id;
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - input.days);
+
+      // Buscar sessões dos últimos N dias
+      const sessions = await db
+        .select({
+          date: timeSession.startTime,
+          duration: timeSession.duration,
+          topicId: timeSession.topicId,
+          topicName: topic.name,
+          disciplineName: discipline.name,
+        })
+        .from(timeSession)
+        .leftJoin(topic, eq(timeSession.topicId, topic.id))
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .leftJoin(study, eq(discipline.studyId, study.id))
+        .where(and(
+          eq(study.userId, userId),
+          gte(timeSession.startTime, daysAgo)
+        ))
+        .orderBy(desc(timeSession.startTime));
+
+      console.log('Sessions found:', sessions.length);
+      console.log('Sample sessions:', sessions.slice(0, 3));
+
+      // Agrupar por data para gráfico
+      const dailyData: Record<string, number> = {};
+      sessions.forEach(session => {
+        const date = session.date.toISOString().split('T')[0];
+        dailyData[date] = (dailyData[date] || 0) + session.duration;
+      });
+
+      // Calcular streak de dias estudando
+      let currentStreak = 0;
+      const today = new Date();
+      for (let i = 0; i < input.days; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        if (dailyData[dateStr] && dailyData[dateStr] > 0) {
+          currentStreak++;
+        } else if (i === 0) {
+          // Se hoje não estudou, verifica ontem
+          continue;
+        } else {
+          break;
+        }
+      }
+
+      // Análise de horários mais produtivos
+      const hourlyStats: Record<number, number> = {};
+      sessions.forEach(session => {
+        const hour = session.date.getHours();
+        hourlyStats[hour] = (hourlyStats[hour] || 0) + session.duration;
+      });
+
+      const mostProductiveHour = Object.entries(hourlyStats)
+        .sort(([,a], [,b]) => b - a)[0]?.[0];
+
+      // Estatísticas por disciplina
+      const disciplineStats: Record<string, { time: number, sessions: number }> = {};
+      sessions.forEach(session => {
+        const discipline = session.disciplineName || 'Sem disciplina';
+        if (!disciplineStats[discipline]) {
+          disciplineStats[discipline] = { time: 0, sessions: 0 };
+        }
+        disciplineStats[discipline].time += session.duration;
+        disciplineStats[discipline].sessions += 1;
+      });
+
+      const result = {
+        dailyData: Object.entries(dailyData).map(([date, duration]) => ({
+          date,
+          duration,
+        })),
+        totalTime: sessions.reduce((sum, s) => sum + s.duration, 0),
+        totalSessions: sessions.length,
+        averageSessionTime: sessions.length > 0 ? sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length : 0,
+        currentStreak,
+        mostProductiveHour: mostProductiveHour ? parseInt(mostProductiveHour) : null,
+        disciplineStats: Object.entries(disciplineStats).map(([name, stats]) => ({
+          name,
+          ...stats,
+        })).sort((a, b) => b.time - a.time),
+      };
+
+      console.log('=== FINAL RESULT ===');
+      console.log('Total sessions:', result.totalSessions);
+      console.log('Average session time (ms):', result.averageSessionTime);
+      console.log('Average session time (min):', result.averageSessionTime / 1000 / 60);
+      console.log('Total time (ms):', result.totalTime);
+      console.log('Sample daily data:', result.dailyData.slice(0, 3));
+
+      return result;
     }),
 });
 export type AppRouter = typeof appRouter;

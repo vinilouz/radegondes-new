@@ -16,7 +16,7 @@ export default function Header() {
 
 	const protectedLinks = [
 		{ to: "/planos", label: "Meus Planos", icon: BookOpen },
-		{ to: "/dashboard", label: "Dashboard", icon: BarChart3 },
+		{ to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
 	] as const;
 
 	const links = session ? protectedLinks : publicLinks;

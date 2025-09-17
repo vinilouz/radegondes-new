@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProtectedEstatisticasRouteImport } from './routes/_protected/estatisticas'
 import { Route as ProtectedPlanosIndexRouteImport } from './routes/_protected/planos/index'
 import { Route as ProtectedPlanosStudyIdIndexRouteImport } from './routes/_protected/planos/$studyId/index'
 import { Route as ProtectedPlanosStudyIdDisciplineIdRouteImport } from './routes/_protected/planos/$studyId/$disciplineId'
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedEstatisticasRoute = ProtectedEstatisticasRouteImport.update({
+  id: '/estatisticas',
+  path: '/estatisticas',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedPlanosIndexRoute = ProtectedPlanosIndexRouteImport.update({
   id: '/planos/',
   path: '/planos/',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/estatisticas': typeof ProtectedEstatisticasRoute
   '/planos': typeof ProtectedPlanosIndexRoute
   '/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
   '/planos/$studyId': typeof ProtectedPlanosStudyIdIndexRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/estatisticas': typeof ProtectedEstatisticasRoute
   '/planos': typeof ProtectedPlanosIndexRoute
   '/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
   '/planos/$studyId': typeof ProtectedPlanosStudyIdIndexRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/_protected/estatisticas': typeof ProtectedEstatisticasRoute
   '/_protected/planos/': typeof ProtectedPlanosIndexRoute
   '/_protected/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
   '/_protected/planos/$studyId/': typeof ProtectedPlanosStudyIdIndexRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
+    | '/estatisticas'
     | '/planos'
     | '/planos/$studyId/$disciplineId'
     | '/planos/$studyId'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
+    | '/estatisticas'
     | '/planos'
     | '/planos/$studyId/$disciplineId'
     | '/planos/$studyId'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/dashboard'
     | '/login'
+    | '/_protected/estatisticas'
     | '/_protected/planos/'
     | '/_protected/planos/$studyId/$disciplineId'
     | '/_protected/planos/$studyId/'
@@ -145,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/estatisticas': {
+      id: '/_protected/estatisticas'
+      path: '/estatisticas'
+      fullPath: '/estatisticas'
+      preLoaderRoute: typeof ProtectedEstatisticasRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/planos/': {
       id: '/_protected/planos/'
       path: '/planos'
@@ -170,12 +189,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProtectedRouteChildren {
+  ProtectedEstatisticasRoute: typeof ProtectedEstatisticasRoute
   ProtectedPlanosIndexRoute: typeof ProtectedPlanosIndexRoute
   ProtectedPlanosStudyIdDisciplineIdRoute: typeof ProtectedPlanosStudyIdDisciplineIdRoute
   ProtectedPlanosStudyIdIndexRoute: typeof ProtectedPlanosStudyIdIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedEstatisticasRoute: ProtectedEstatisticasRoute,
   ProtectedPlanosIndexRoute: ProtectedPlanosIndexRoute,
   ProtectedPlanosStudyIdDisciplineIdRoute:
     ProtectedPlanosStudyIdDisciplineIdRoute,
