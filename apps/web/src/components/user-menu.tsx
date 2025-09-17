@@ -23,7 +23,7 @@ export default function UserMenu() {
 	if (!session) {
 		return (
 			<Button variant="outline" asChild>
-				<Link to="/login">Sign In</Link>
+				<Link to="/login">Entrar</Link>
 			</Button>
 		);
 	}
@@ -31,12 +31,21 @@ export default function UserMenu() {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline">{session.user.name}</Button>
+				<Button variant="outline" className="flex items-center gap-2">
+					<div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-xs">
+						{session.user.name?.slice(0, 2).toUpperCase()}
+					</div>
+					<span className="hidden sm:inline">{session.user.name}</span>
+				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="bg-card">
-				<DropdownMenuLabel>My Account</DropdownMenuLabel>
+			<DropdownMenuContent className="bg-card w-56">
+				<DropdownMenuLabel className="text-center">
+					<div className="flex flex-col">
+						<span className="font-semibold">{session.user.name}</span>
+						<span className="text-xs text-muted-foreground font-normal">{session.user.email}</span>
+					</div>
+				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem>{session.user.email}</DropdownMenuItem>
 				<DropdownMenuItem asChild>
 					<Button
 						variant="destructive"
@@ -53,7 +62,7 @@ export default function UserMenu() {
 							});
 						}}
 					>
-						Sign Out
+						Sair
 					</Button>
 				</DropdownMenuItem>
 			</DropdownMenuContent>
