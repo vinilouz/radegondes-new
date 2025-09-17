@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@tanstack/react-store';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -149,31 +149,31 @@ function DisciplinePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card className="flex flex-row items-center p-4 lg:p-6">
-          <div className="mr-4 lg:mr-6">
-            <BookCopy className="h-8 w-8 text-primary" />
+          <div className="mr-3 lg:mr-6">
+            <BookCopy className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
           </div>
           <div>
-            <div className="text-3xl font-bold">{topics.length}</div>
+            <div className="text-2xl lg:text-3xl font-bold">{topics.length}</div>
             <p className="text-sm text-muted-foreground">Tópicos</p>
           </div>
         </Card>
 
         <Card className="flex flex-row items-center p-4 lg:p-6">
-          <div className="mr-4 lg:mr-6">
-            <BarChart3 className="h-8 w-8 text-primary" />
+          <div className="mr-3 lg:mr-6">
+            <BarChart3 className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
           </div>
           <div>
-            <div className="text-3xl font-bold">{Math.round(disciplineProgress)}%</div>
+            <div className="text-2xl lg:text-3xl font-bold">{Math.round(disciplineProgress)}%</div>
             <p className="text-sm text-muted-foreground">Progresso</p>
           </div>
         </Card>
 
         <Card className="flex flex-row items-center p-4 lg:p-6">
-          <div className="mr-4 lg:mr-6">
-            <Timer className="h-8 w-8 text-primary" />
+          <div className="mr-3 lg:mr-6">
+            <Timer className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
           </div>
           <div>
-            <div className="text-3xl font-bold">{formatTime(totalDisciplineTime)}</div>
+            <div className="text-2xl lg:text-3xl font-bold">{formatTime(totalDisciplineTime)}</div>
             <p className="text-sm text-muted-foreground">Tempo de Estudo</p>
           </div>
         </Card>
@@ -182,9 +182,9 @@ function DisciplinePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl font-semibold">Lista de Tópicos</CardTitle>
-          <div className="flex space-x-2 pt-4">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
             <Input placeholder="Adicionar novo tópico..." value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
-            <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending || topicsQuery.isLoading}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
+            <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending || topicsQuery.isLoading} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -200,14 +200,14 @@ function DisciplinePage() {
               const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
               return (
                 <Card key={topic.id} className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer p-0" onClick={() => setStudyTopic(topic)}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
+                  <CardContent className="p-4 lg:p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
                         <h3 className="font-semibold text-lg">{topic.name}</h3>
                         {getStatusBadge(topic.status)}
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
                         <div className="flex items-center gap-2">
                           <div
                             className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
@@ -235,10 +235,8 @@ function DisciplinePage() {
                           <Percent className="h-4 w-4" />
                           {performance.toFixed(0)}
                         </div>
-
                         <TopicTime topicId={topic.id} disciplineId={discipline.id} studyId={discipline.studyId!} showButton={true} />
-
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1 ml-auto sm:ml-0" onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(topic)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -265,7 +263,7 @@ function DisciplinePage() {
       </Card>
 
       <Dialog open={!!studyTopic} onOpenChange={() => setStudyTopic(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl w-[95%] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{studyTopic?.name}</DialogTitle>
             <DialogDescription>
@@ -275,7 +273,7 @@ function DisciplinePage() {
 
           {studyTopic && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Questões Corretas</Label>
                   <div className="flex items-center gap-2 mt-2">
@@ -383,7 +381,7 @@ function DisciplinePage() {
       </Dialog>
 
       <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95%] sm:w-full max-w-md">
           <DialogHeader>
             <DialogTitle>🎉 Performance 100%!</DialogTitle>
             <DialogDescription>
