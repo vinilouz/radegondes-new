@@ -49,6 +49,12 @@ function RootComponent() {
 		select: (s) => s.isLoading,
 	});
 
+	const location = useRouterState({
+		select: (s) => s.location.pathname,
+	});
+
+	const isLoginPage = location === '/login';
+
 	return (
 		<>
 			<HeadContent />
@@ -58,10 +64,16 @@ function RootComponent() {
 				disableTransitionOnChange
 				storageKey="vite-ui-theme"
 			>
-				<div className="grid grid-rows-[auto_1fr] h-svh">
-					<Header />
-					{isFetching ? <Loader /> : <Outlet />}
-				</div>
+				{isLoginPage ? (
+					<div className="h-svh">
+						{isFetching ? <Loader /> : <Outlet />}
+					</div>
+				) : (
+					<div className="grid grid-rows-[auto_1fr] h-svh">
+						<Header />
+						{isFetching ? <Loader /> : <Outlet />}
+					</div>
+				)}
 				<Toaster richColors />
 			</ThemeProvider>
 			<TanStackRouterDevtools position="bottom-left" />
