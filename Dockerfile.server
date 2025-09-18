@@ -1,4 +1,4 @@
-# Dockerfile.web - Versão Final Corrigida  
+# Dockerfile.server - Versão Final Corrigida
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -6,9 +6,9 @@ WORKDIR /app
 # Copia os arquivos de configuração do monorepo
 COPY package.json package-lock.json turbo.json ./
 COPY apps/server/package.json ./apps/server/
+COPY apps/server/tsconfig.json ./apps/server/
+COPY apps/server/tsconfig.build.json ./apps/server/
 COPY apps/web/package.json ./apps/web/
-COPY apps/web/vite.config.ts ./apps/web/
-COPY apps/web/tsconfig.json ./apps/web/
 
 # Instala todas as dependências
 RUN npm ci
@@ -16,21 +16,26 @@ RUN npm ci
 # Copia todo o código fonte
 COPY . .
 
-# Build da aplicação web
-RUN npx turbo run build --filter=web
+# Build do servidor
+RUN cd apps/server && npm run build
 
 # Stage de produção
 FROM node:20-alpine AS runner
 
-WORKDIR /app/apps/web
+WORKDIR /app
 
-# Instala um servidor estático simples
-RUN npm install -g serve
+# Instala apenas dependências de produção
+COPY package.json package-lock.json ./
+COPY apps/server/package.json ./apps/server/
 
-# Copia apenas os arquivos de build
-COPY --from=builder /app/apps/web/dist ./dist
+RUN npm ci --production
 
-EXPOSE 3001
+# Copia os arquivos compilados
+COPY --from=builder /app/apps/server/dist ./apps/server/dist
+COPY apps/server/.env.example ./apps/server/
 
-# Usa o serve para servir os arquivos estáticos
-CMD ["serve", "-s", "dist", "-l", "3001"]
+WORKDIR /app/apps/server
+
+EXPOSE 3000
+
+CMD ["node", "dist/index.js"]
