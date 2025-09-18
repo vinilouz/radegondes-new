@@ -1,0 +1,37 @@
+# docker-compose.deploy.yml
+# Use este arquivo para deploy no Dokploy com Docker Compose
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "3000:3000"
+    environment:
+      # Adicione suas variáveis de ambiente aqui
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: ${VITE_API_URL:-http://server:3000}
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

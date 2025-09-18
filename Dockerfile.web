@@ -1,0 +1,36 @@
+# Dockerfile.web - Versão Final Corrigida  
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copia os arquivos de configuração do monorepo
+COPY package.json package-lock.json turbo.json ./
+COPY apps/server/package.json ./apps/server/
+COPY apps/web/package.json ./apps/web/
+COPY apps/web/vite.config.ts ./apps/web/
+COPY apps/web/tsconfig.json ./apps/web/
+
+# Instala todas as dependências
+RUN npm ci
+
+# Copia todo o código fonte
+COPY . .
+
+# Build da aplicação web
+RUN npx turbo run build --filter=web
+
+# Stage de produção
+FROM node:20-alpine AS runner
+
+WORKDIR /app/apps/web
+
+# Instala um servidor estático simples
+RUN npm install -g serve
+
+# Copia apenas os arquivos de build
+COPY --from=builder /app/apps/web/dist ./dist
+
+EXPOSE 3001
+
+# Usa o serve para servir os arquivos estáticos
+CMD ["serve", "-s", "dist", "-l", "3001"]
