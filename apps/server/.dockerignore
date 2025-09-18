@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+/.pnp
+.pnp.*
+
+# Build outputs
+dist/
+/build/
+/out/
+.turbo/
+
+# Environment & local files
+.env*
+!.env.example
+.DS_Store
+*.pem
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea
+
+# Local database
+*.db*
+
+# Drizzle
+drizzle/
+
+# Docker
+Dockerfile
+.dockerignore

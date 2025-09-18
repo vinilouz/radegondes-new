@@ -1,23 +1,17 @@
-UserFlow:
-  - old/frontend/src/pages/user/Planos.jsx (listagem de planos)
-  - old/frontend/src/pages/user/PlanoDetalhes.jsx (detalhes do plano, com disciplinas)
-  - old/frontend/src/pages/user/DisciplinaDetalhes.jsx (detalhes da disciplina, com tópicos)
+# todo
 
-Minha descrição personalizada
-
-tasks:
-- status
-- header
-- mobile
+- home
+- seed
 
 
-# TIME FILES
-@apps/web/src/store/studyTimerStore.ts
-@apps/web/src/routes/_protected/planos/index.tsx
-@apps/web/src/routes/_protected/planos/$studyId/index.tsx
-@apps/web/src/routes/_protected/planos/$studyId/$disciplineId.tsx
-@apps/web/src/components/TopicTime.tsx
-@apps/web/src/components/StudyTimerWidget.tsx
-@apps/web/src/components/StudyTimerRuntime.tsx
-@apps/web/src/components/StudyTime.tsx
-@apps/web/src/components/DisciplineTime.tsx
+init run server
+1. `cd apps/server/`
+2. `npm i`
+3. `npm run build`
+4. `npm run start`
+
+init run web
+1. `cd apps/web/`
+2. `npm i`
+3. `npm run build`
+4. `npm run start`
