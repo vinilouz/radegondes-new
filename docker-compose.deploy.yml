@@ -1,5 +1,4 @@
-# docker-compose.deploy.yml
-# Use este arquivo para deploy no Dokploy com Docker Compose
+# docker-compose.yml para Dokploy
 version: '3.8'
 
 services:
@@ -10,12 +9,19 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Adicione suas variáveis de ambiente aqui
-      DATABASE_URL: ${DATABASE_URL}
       NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://radegondes.louzlabs.com.br}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://radegondes-server.louzlabs.com.br}
     restart: unless-stopped
     networks:
-      - app-network
+      - radegondes-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   web:
     build:
@@ -30,8 +36,13 @@ services:
       - server
     restart: unless-stopped
     networks:
-      - app-network
+      - radegondes-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
-  app-network:
+  radegondes-network:
     driver: bridge
