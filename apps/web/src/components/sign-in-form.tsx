@@ -38,7 +38,7 @@ export default function SignInForm({
             navigate({
               to: "/planos",
             });
-            toast.success("Sign in successful");
+            toast.success("Login realizado com sucesso");
           },
           onError: (error) => {
             toast.error(error.error.message || error.error.statusText);
@@ -48,8 +48,8 @@ export default function SignInForm({
     },
     validators: {
       onSubmit: z.object({
-        email: z.email("Invalid email address"),
-        password: z.string().min(8, "Password must be at least 8 characters"),
+        email: z.email("Endereço de email inválido"),
+        password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
       }),
     },
   });
@@ -141,7 +141,7 @@ export default function SignInForm({
                 className="w-full"
                 disabled={!state.canSubmit || state.isSubmitting}
               >
-                {state.isSubmitting ? "Submitting..." : "Sign In"}
+                {state.isSubmitting ? "Enviando..." : "Entrar"}
               </Button>
             )}
           </form.Subscribe>

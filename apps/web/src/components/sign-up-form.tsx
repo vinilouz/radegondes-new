@@ -40,7 +40,7 @@ export default function SignUpForm({
 						navigate({
 							to: "/planos",
 						});
-						toast.success("Sign up successful");
+						toast.success("Cadastro realizado com sucesso");
 					},
 					onError: (error) => {
 						toast.error(error.error.message || error.error.statusText);
@@ -50,9 +50,9 @@ export default function SignUpForm({
 		},
 		validators: {
 			onSubmit: z.object({
-				name: z.string().min(2, "Name must be at least 2 characters"),
-				email: z.email("Invalid email address"),
-				password: z.string().min(8, "Password must be at least 8 characters"),
+				name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+				email: z.email("Endereço de email inválido"),
+				password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
 			}),
 		},
 	});

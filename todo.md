@@ -1,12 +1,3 @@
-fix types
-implement test route in front
-labels 
-
-# todo
-
-- labels | verificação
-
-
 init run server
 1. `cd apps/server/`
 2. `npm i`

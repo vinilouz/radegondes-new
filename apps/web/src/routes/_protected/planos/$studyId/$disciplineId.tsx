@@ -183,7 +183,7 @@ function DisciplinePage() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold">Lista de Tópicos</CardTitle>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
-            <Input placeholder="Adicionar novo tópico..." value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
+            <Input placeholder="Adicionar novo tópico... (ex: PDF 1 Radegondes)" value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
             <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending || topicsQuery.isLoading} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
           </div>
         </CardHeader>

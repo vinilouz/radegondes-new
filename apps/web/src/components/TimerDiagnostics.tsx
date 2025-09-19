@@ -21,11 +21,11 @@ export function TimerDiagnostics() {
   return (
     <div className="fixed top-4 left-4 bg-black/90 text-green-400 p-4 rounded-lg 
                     font-mono text-xs max-w-md z-[100] space-y-2">
-      <div className="text-yellow-400 font-bold mb-2">🔧 TIMER DEBUG</div>
+      <div className="text-yellow-400 font-bold mb-2">🔧 DEPURAÇÃO DO TIMER</div>
       
       {/* Estado do Store */}
       <div className="border border-green-400/30 p-2 rounded">
-        <div className="text-cyan-400">Store State:</div>
+        <div className="text-cyan-400">Estado do Store:</div>
         {state.activeSession ? (
           <>
             <div>SessionID: {state.activeSession.sessionId.slice(0, 8)}...</div>
@@ -35,13 +35,13 @@ export function TimerDiagnostics() {
             <div>Tick: {state.tick}</div>
           </>
         ) : (
-          <div className="text-gray-500">No active session</div>
+          <div className="text-gray-500">Nenhuma sessão ativa</div>
         )}
       </div>
       
       {/* Estado do localStorage */}
       <div className="border border-yellow-400/30 p-2 rounded">
-        <div className="text-yellow-400">LocalStorage:</div>
+        <div className="text-yellow-400">Armazenamento Local:</div>
         {localStorage ? (
           <>
             <div>SessionID: {localStorage.sessionId?.slice(0, 8)}...</div>
@@ -49,13 +49,13 @@ export function TimerDiagnostics() {
             <div>Age: {Math.round((Date.now() - localStorage.startTime) / 1000)}s</div>
           </>
         ) : (
-          <div className="text-gray-500">No stored session</div>
+          <div className="text-gray-500">Nenhuma sessão armazenada</div>
         )}
       </div>
       
       {/* Totais Salvos */}
       <div className="border border-purple-400/30 p-2 rounded">
-        <div className="text-purple-400">Saved Totals:</div>
+        <div className="text-purple-400">Totais Salvos:</div>
         {Object.keys(state.savedTotals).length > 0 ? (
           Object.entries(state.savedTotals).slice(0, 3).map(([id, time]) => (
             <div key={id}>
@@ -63,24 +63,24 @@ export function TimerDiagnostics() {
             </div>
           ))
         ) : (
-          <div className="text-gray-500">No saved totals</div>
+          <div className="text-gray-500">Nenhum total salvo</div>
         )}
       </div>
       
       {/* Ações de Teste */}
       <div className="border border-red-400/30 p-2 rounded space-y-1">
-        <div className="text-red-400">Test Actions:</div>
+        <div className="text-red-400">Ações de Teste:</div>
         <button 
           onClick={() => window.localStorage.clear()}
           className="px-2 py-1 bg-red-600 text-white rounded text-xs"
         >
-          Clear LocalStorage
+          Limpar Armazenamento Local
         </button>
         <button 
           onClick={() => window.location.reload()}
           className="px-2 py-1 bg-blue-600 text-white rounded text-xs ml-2"
         >
-          Reload Page
+          Recarregar Página
         </button>
       </div>
     </div>
