@@ -1,7 +1,8 @@
 # todo
 
-- home
 - seed
+- home redirect
+- labels | verificação
 
 
 init run server

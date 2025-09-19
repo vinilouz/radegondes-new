@@ -26,5 +26,8 @@
   "devDependencies": {
     "turbo": "^2.5.4"
   },
-  "packageManager": "npm@10.9.3"
+  "packageManager": "npm@10.9.3",
+  "dependencies": {
+    "drizzle-seed": "^0.3.1"
+  }
 }
