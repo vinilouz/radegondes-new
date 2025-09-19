@@ -1,6 +1,9 @@
+fix types
+implement test route in front
+labels 
+
 # todo
 
-- home redirect
 - labels | verificação
 
 
