@@ -1,6 +1,5 @@
 # todo
 
-- seed
 - home redirect
 - labels | verificação
 
