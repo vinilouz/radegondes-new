@@ -672,11 +672,47 @@ export const appRouter = router({
       console.log('Sessions found:', sessions.length);
       console.log('Sample sessions:', sessions.slice(0, 3));
 
-      // Agrupar por data para gráfico
-      const dailyData: Record<string, number> = {};
+      // Buscar desempenho dos tópicos atualizados no período
+      const topicPerformance = await db
+        .select({
+          date: topic.updatedAt,
+          correct: topic.correct,
+          wrong: topic.wrong,
+          topicId: topic.id,
+          topicName: topic.name,
+          disciplineName: discipline.name,
+        })
+        .from(topic)
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .leftJoin(study, eq(discipline.studyId, study.id))
+        .where(and(
+          eq(study.userId, userId),
+          gte(topic.updatedAt, daysAgo)
+        ))
+        .orderBy(desc(topic.updatedAt));
+
+      console.log('Topic performance records:', topicPerformance.length);
+
+      // Agrupar por data para gráfico - combinar tempo de estudo e desempenho
+      const dailyData: Record<string, { duration: number; correct: number; wrong: number }> = {};
+
+      // Agrupar sessões por data
       sessions.forEach(session => {
         const date = session.date.toISOString().split('T')[0];
-        dailyData[date] = (dailyData[date] || 0) + session.duration;
+        if (!dailyData[date]) {
+          dailyData[date] = { duration: 0, correct: 0, wrong: 0 };
+        }
+        dailyData[date].duration += session.duration;
+      });
+
+      // Agrupar desempenho por data
+      topicPerformance.forEach(perf => {
+        const date = perf.date.toISOString().split('T')[0];
+        if (!dailyData[date]) {
+          dailyData[date] = { duration: 0, correct: 0, wrong: 0 };
+        }
+        dailyData[date].correct += perf.correct;
+        dailyData[date].wrong += perf.wrong;
       });
 
       // Calcular streak de dias estudando
@@ -687,7 +723,7 @@ export const appRouter = router({
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
 
-        if (dailyData[dateStr] && dailyData[dateStr] > 0) {
+        if (dailyData[dateStr] && dailyData[dateStr].duration > 0) {
           currentStreak++;
         } else if (i === 0) {
           // Se hoje não estudou, verifica ontem
@@ -730,10 +766,19 @@ export const appRouter = router({
       });
 
       const result = {
-        dailyData: Object.entries(dailyData).map(([date, duration]) => ({
-          date,
-          duration,
-        })),
+        dailyData: Object.entries(dailyData).map(([date, data]) => {
+          const performance = data.correct + data.wrong > 0
+            ? Math.round((data.correct / (data.correct + data.wrong)) * 100)
+            : 0;
+          return {
+            date,
+            duration: data.duration,
+            performance,
+            questions: data.correct + data.wrong,
+            correct: data.correct,
+            wrong: data.wrong,
+          };
+        }),
         totalTime: sessions.reduce((sum, s) => sum + s.duration, 0),
         totalSessions: sessions.length,
         averageSessionTime: sessions.length > 0 ? sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length : 0,

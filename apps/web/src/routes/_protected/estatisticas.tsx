@@ -6,7 +6,7 @@ import { formatTime, formatTimeRelative } from '@/lib/utils';
 import { BookOpen, Clock, Target, TrendingUp, Award, Flame, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
 export const Route = createFileRoute('/_protected/estatisticas')({
   component: EstatisticasPage,
@@ -34,7 +34,10 @@ function EstatisticasPage() {
       month: '2-digit'
     }),
     duration: Math.round(Math.min(item.duration / 1000 / 60, 1440)), // max 24 horas por dia
-    desempenho: Math.floor(Math.random() * 40) + 60 // Simular desempenho 60-100%
+    desempenho: item.performance || 0, // Usar desempenho real do backend
+    questoes: item.questions || 0, // Número total de questões
+    acertos: item.correct || 0, // Questões corretas
+    erros: item.wrong || 0 // Questões erradas
   })).sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime()) ?? [];
 
   // Calcular teto máximo razoável para o gráfico
@@ -169,10 +172,30 @@ function EstatisticasPage() {
                       label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip
-                      formatter={(value) => [`${(Number(value) / 60).toFixed(1)}h`, 'Tempo de Estudo']}
+                      contentStyle={{
+                        backgroundColor: 'rgb(255, 255, 255)',
+                        borderColor: 'rgb(229, 231, 235)',
+                        color: 'rgb(55, 65, 81)',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        opacity: 1
+                      }}
+                      wrapperStyle={{
+                        opacity: 1
+                      }}
+                      formatter={(value) => {
+                        const minutes = Number(value);
+                        if (minutes >= 60) {
+                          const hours = Math.floor(minutes / 60);
+                          const remainingMinutes = minutes % 60;
+                          return [`${hours}h${remainingMinutes > 0 ? remainingMinutes + 'min' : ''}`, 'Tempo de Estudo'];
+                        }
+                        return [`${minutes} min`, 'Tempo de Estudo'];
+                      }}
                       labelFormatter={(label) => `Data: ${label}`}
                     />
-                    <Bar dataKey="duration" fill="hsl(var(--primary))" name="horas" />
+                    <Bar dataKey="duration" fill="#e66912" name="horas" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -208,7 +231,21 @@ function EstatisticasPage() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [`${value} min`, 'Tempo de Estudo']} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgb(255, 255, 255)',
+                        borderColor: 'rgb(229, 231, 235)',
+                        color: 'rgb(55, 65, 81)',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        opacity: 1
+                      }}
+                      wrapperStyle={{
+                        opacity: 1
+                      }}
+                      formatter={(value) => [`${value} min`, 'Tempo de Estudo']}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -336,13 +373,13 @@ function EstatisticasPage() {
           <CardHeader>
             <CardTitle>Evolução no Tempo</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Desempenho e Questões ao longo do tempo
+              Tempo de Estudo (minutos) vs Questões respondidas por dia
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
@@ -353,25 +390,46 @@ function EstatisticasPage() {
                   />
                   <YAxis
                     tick={{ fontSize: 10 }}
-                    domain={[0, 100]}
-                    label={{ value: '%', angle: -90, position: 'insideLeft' }}
+                    label={{ value: 'Minutos / Questões', angle: -90, position: 'insideLeft', offset: -5 }}
                   />
                   <Tooltip
-                    formatter={(value, name) => [
-                      `${value}${name === 'desempenho' ? '%' : ' questões'}`,
-                      name === 'desempenho' ? 'Desempenho' : 'Questões'
-                    ]}
+                    contentStyle={{
+                      backgroundColor: 'rgb(255, 255, 255)',
+                      borderColor: 'rgb(229, 231, 235)',
+                      color: 'rgb(55, 65, 81)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                      opacity: 1
+                    }}
+                    wrapperStyle={{
+                      opacity: 1
+                    }}
+                    formatter={(value, name) => {
+                      if (name === 'Tempo de Estudo') {
+                        const minutes = Number(value);
+                        if (minutes >= 60) {
+                          const hours = Math.floor(minutes / 60);
+                          const remainingMinutes = minutes % 60;
+                          return [`${hours}h${remainingMinutes > 0 ? remainingMinutes + 'min' : ''}`, name];
+                        }
+                        return [`${minutes} min`, name];
+                      }
+                      return [value, name];
+                    }}
                     labelFormatter={(label) => `Data: ${label}`}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="desempenho"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
+                  <Bar
+                    dataKey="duration"
+                    fill="#e66912"
+                    name="Tempo de Estudo"
                   />
-                </LineChart>
+                  <Bar
+                    dataKey="questoes"
+                    fill="#f5a623"
+                    name="Questões Respondidas"
+                  />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
