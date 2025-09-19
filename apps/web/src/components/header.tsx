@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ModeToggle } from "./mode-toggle";
 import { authClient } from "@/lib/auth-client";
+import UserMenu from "./user-menu";
 import { BookOpen, Home, BarChart3, Menu } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
@@ -66,7 +67,7 @@ export default function Header() {
 				{/* Menu Mobile + Controles */}
 				<div className="flex items-center gap-2">
 					<ModeToggle />
-
+          <UserMenu />
 					{/* Menu Mobile */}
 					{session && (
 						<div className="relative md:hidden">
