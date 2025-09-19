@@ -6,7 +6,7 @@ import { formatTime, formatTimeRelative } from '@/lib/utils';
 import { BookOpen, Clock, Target, TrendingUp, Award, Flame, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Line } from 'recharts';
 
 export const Route = createFileRoute('/_protected/estatisticas')({
   component: EstatisticasPage,
@@ -371,26 +371,41 @@ function EstatisticasPage() {
       <div className="grid grid-cols-1 gap-6 mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>Evolução no Tempo</CardTitle>
+            <CardTitle>Desempenho por Disciplina</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Tempo de Estudo (minutos) vs Questões respondidas por dia
+              Tempo investido e taxa de acertos por disciplina
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+                <BarChart data={stats?.disciplineStats.map(discipline => ({
+                  name: discipline.name,
+                  tempo: Math.round(discipline.time / 1000 / 60),
+                  acertos: discipline.correct || 0,
+                  erros: discipline.wrong || 0,
+                  taxaAcertos: discipline.correct && discipline.wrong ?
+                    Math.round((discipline.correct / (discipline.correct + discipline.wrong)) * 100) : 0
+                })) || []} margin={{ top: 20, right: 10, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
-                    dataKey="date"
+                    dataKey="name"
                     tick={{ fontSize: 10 }}
                     angle={-45}
                     textAnchor="end"
-                    height={60}
+                    height={80}
                   />
                   <YAxis
                     tick={{ fontSize: 10 }}
-                    label={{ value: 'Minutos / Questões', angle: -90, position: 'insideLeft', offset: -5 }}
+                    yAxisId="left"
+                    label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10 }}
+                    yAxisId="right"
+                    orientation="right"
+                    label={{ value: 'Taxa de Acertos (%)', angle: 90, position: 'outsideRight'}}
+                    domain={[0, 100]}
                   />
                   <Tooltip
                     contentStyle={{
@@ -407,27 +422,29 @@ function EstatisticasPage() {
                     }}
                     formatter={(value, name) => {
                       if (name === 'Tempo de Estudo') {
-                        const minutes = Number(value);
-                        if (minutes >= 60) {
-                          const hours = Math.floor(minutes / 60);
-                          const remainingMinutes = minutes % 60;
-                          return [`${hours}h${remainingMinutes > 0 ? remainingMinutes + 'min' : ''}`, name];
-                        }
-                        return [`${minutes} min`, name];
+                        return [`${value} min`, name];
+                      }
+                      if (name === 'Taxa de Acertos') {
+                        return [`${value}%`, name];
                       }
                       return [value, name];
                     }}
-                    labelFormatter={(label) => `Data: ${label}`}
+                    labelFormatter={(label) => `Disciplina: ${label}`}
                   />
                   <Bar
-                    dataKey="duration"
+                    yAxisId="left"
+                    dataKey="tempo"
                     fill="#e66912"
                     name="Tempo de Estudo"
                   />
-                  <Bar
-                    dataKey="questoes"
-                    fill="#f5a623"
-                    name="Questões Respondidas"
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="taxaAcertos"
+                    stroke="#22c55e"
+                    strokeWidth={2}
+                    name="Taxa de Acertos"
+                    dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
                   />
                 </BarChart>
               </ResponsiveContainer>

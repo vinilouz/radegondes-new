@@ -744,14 +744,24 @@ export const appRouter = router({
         .sort(([,a], [,b]) => b - a)[0]?.[0];
 
       // Estatísticas por disciplina
-      const disciplineStats: Record<string, { time: number, sessions: number }> = {};
+      const disciplineStats: Record<string, { time: number, sessions: number, correct: number, wrong: number }> = {};
       sessions.forEach(session => {
         const discipline = session.disciplineName || 'Sem disciplina';
         if (!disciplineStats[discipline]) {
-          disciplineStats[discipline] = { time: 0, sessions: 0 };
+          disciplineStats[discipline] = { time: 0, sessions: 0, correct: 0, wrong: 0 };
         }
         disciplineStats[discipline].time += session.duration;
         disciplineStats[discipline].sessions += 1;
+      });
+
+      // Agregar desempenho por disciplina
+      topicPerformance.forEach(perf => {
+        const discipline = perf.disciplineName || 'Sem disciplina';
+        if (!disciplineStats[discipline]) {
+          disciplineStats[discipline] = { time: 0, sessions: 0, correct: 0, wrong: 0 };
+        }
+        disciplineStats[discipline].correct += perf.correct;
+        disciplineStats[discipline].wrong += perf.wrong;
       });
 
       // Matriz de calor: dias da semana x horas do dia
