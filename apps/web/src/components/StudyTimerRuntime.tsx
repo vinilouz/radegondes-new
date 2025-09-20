@@ -1,11 +1,43 @@
-import { useEffect } from 'react'
-import { timerActions } from '@/store/studyTimerStore'
+import { useEffect, useState, useRef } from 'react'
+import { useStore } from '@tanstack/react-store'
+import { timerActions, studyTimerStore, selectors } from '@/store/studyTimerStore'
+import { formatTime } from '@/lib/utils'
 
 export function StudyTimerRuntime() {
+  const [originalTitle] = useState(() => document.title)
+  const titleIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const activeSession = useStore(studyTimerStore, selectors.getActiveSession)
+  const sessionTime = useStore(studyTimerStore, selectors.getCurrentSessionTime)
+
   // Restaura sessão ao montar
   useEffect(() => {
     timerActions.restoreSession()
   }, [])
+
+  // Atualiza título da página quando timer está ativo
+  useEffect(() => {
+    if (activeSession) {
+      const updateTitle = () => {
+        const currentTime = Date.now() - activeSession.startTime
+        document.title = `${formatTime(currentTime)} - ${originalTitle}`
+      }
+
+      updateTitle()
+      titleIntervalRef.current = setInterval(updateTitle, 1000)
+
+      return () => {
+        if (titleIntervalRef.current) {
+          clearInterval(titleIntervalRef.current)
+        }
+      }
+    } else {
+      document.title = originalTitle
+      if (titleIntervalRef.current) {
+        clearInterval(titleIntervalRef.current)
+      }
+    }
+  }, [activeSession, originalTitle])
   
   // GARANTE salvamento ao desmontar/fechar
   useEffect(() => {
@@ -40,23 +72,19 @@ export function StudyTimerRuntime() {
       localStorage.removeItem('timer_session_v2')
     }
     
-    // Salva quando aba fica oculta
-    const saveOnHide = () => {
-      if (document.visibilityState === 'hidden') {
-        timerActions.stopSession().catch(console.error)
-      }
-    }
     
     window.addEventListener('beforeunload', saveOnUnload)
     window.addEventListener('unload', saveOnUnload) // Backup
-    document.addEventListener('visibilitychange', saveOnHide)
     
     return () => {
       window.removeEventListener('beforeunload', saveOnUnload)
       window.removeEventListener('unload', saveOnUnload)
-      document.removeEventListener('visibilitychange', saveOnHide)
+      document.title = originalTitle
+      if (titleIntervalRef.current) {
+        clearInterval(titleIntervalRef.current)
+      }
     }
-  }, [])
+  }, [originalTitle])
   
   return null
 }
