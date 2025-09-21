@@ -2,7 +2,7 @@ import { protectedProcedure, publicProcedure, router, loggerMiddleware } from ".
 import { timerRouter } from "./timer";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
-import { eq, and, desc, count, sum, gte } from "drizzle-orm";
+import { eq, and, desc, asc, count, gte } from "drizzle-orm";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -472,7 +472,7 @@ export const appRouter = router({
         .select()
         .from(topic)
         .where(eq(topic.disciplineId, input.disciplineId))
-        .orderBy(desc(topic.createdAt));
+        .orderBy(asc(topic.createdAt));
 
       return topics;
     }),
@@ -636,6 +636,43 @@ export const appRouter = router({
         .returning();
 
       return updated[0];
+    }),
+
+  reorderTopics: protectedProcedure
+    .input(z.object({
+      topicOrders: z.array(z.object({
+        topicId: z.string(),
+        order: z.number(),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      for (const { topicId, order } of input.topicOrders) {
+        const topicCheck = await db
+          .select({
+            topicId: topic.id,
+            disciplineId: topic.disciplineId,
+            studyId: discipline.studyId,
+            userId: study.userId
+          })
+          .from(topic)
+          .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+          .leftJoin(study, eq(discipline.studyId, study.id))
+          .where(eq(topic.id, topicId))
+          .limit(1);
+
+        if (!topicCheck.length || topicCheck[0].userId !== userId) {
+          throw new Error("Topic not found or access denied");
+        }
+
+        await db
+          .update(topic)
+          .set({ order, updatedAt: new Date() })
+          .where(eq(topic.id, topicId));
+      }
+
+      return { success: true };
     }),
 
   getStudyStatistics: protectedProcedure

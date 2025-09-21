@@ -1,19 +1,18 @@
 import { authClient } from "@/lib/auth-client";
-import { trpc, trpcClient } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
 import { formatTime } from '@/lib/utils';
 import { useStore } from '@tanstack/react-store';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer } from "lucide-react";
+import { Plus, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer } from "lucide-react";
 import { Breadcrumb } from '@/components/Breadcrumb';
 import {
   DropdownMenu,

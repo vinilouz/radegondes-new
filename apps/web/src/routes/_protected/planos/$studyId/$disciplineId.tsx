@@ -16,6 +16,25 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatTime } from '@/lib/utils';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 
 export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId')({
   loader: async ({ params, context }) => {
@@ -25,6 +44,117 @@ export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId'
   },
   component: DisciplinePage,
 });
+
+interface SortableTopicCardProps {
+  topic: {
+    id: string;
+    name: string;
+    disciplineId: string;
+    status: string;
+    notes: string | null | undefined;
+    correct: number;
+    wrong: number;
+    order: number;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  performance: number;
+  studyId: string;
+  onTopicClick: () => void;
+  onEditClick: (e: React.MouseEvent) => void;
+  onDeleteClick: () => void;
+  getStatusBadge: (status: string) => React.ReactNode;
+}
+
+function SortableTopicCard({
+  topic,
+  performance,
+  studyId,
+  onTopicClick,
+  onEditClick,
+  onDeleteClick,
+  getStatusBadge,
+}: SortableTopicCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: topic.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer p-0"
+      onClick={onTopicClick}
+    >
+      <CardContent className="p-4 lg:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors p-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <h3 className="font-semibold text-lg">{topic.name}</h3>
+              {getStatusBadge(topic.status)}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
+                title="Questões corretas - Clique para editar"
+                onClick={onEditClick}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {topic.correct}
+              </div>
+              <div
+                className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/30 rounded-md text-sm font-semibold text-destructive cursor-pointer hover:bg-destructive/20 transition-all"
+                title="Questões erradas - Clique para editar"
+                onClick={onEditClick}
+              >
+                <X className="h-4 w-4" />
+                {topic.wrong}
+              </div>
+            </div>
+
+            <div
+              className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/30 rounded-md text-sm font-semibold text-primary cursor-pointer hover:bg-primary/20 transition-all"
+              title="Performance - Clique para editar"
+              onClick={onEditClick}
+            >
+              <Percent className="h-4 w-4" />
+              {performance.toFixed(0)}
+            </div>
+            <TopicTime topicId={topic.id} disciplineId={topic.disciplineId} studyId={studyId} showButton={true} />
+            <div className="flex items-center gap-1 ml-auto sm:ml-0" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEditClick} title="Editar">
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onDeleteClick} title="Excluir">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function DisciplinePage() {
   const { discipline } = Route.useLoaderData();
@@ -38,10 +168,40 @@ function DisciplinePage() {
 
   const topics = topicsQuery.data ?? [];
 
+  useEffect(() => {
+    setTopicsState(topics.map(topic => ({
+      ...topic,
+      createdAt: new Date(topic.createdAt),
+      updatedAt: new Date(topic.updatedAt),
+    })));
+  }, [topics]);
+
   const [newTopicName, setNewTopicName] = useState("");
-  const [editingTopic, setEditingTopic] = useState<{ id: string, name: string } | null>(null);
-  const [studyTopic, setStudyTopic] = useState<typeof topics[0] | null>(null);
+  const [studyTopic, setStudyTopic] = useState<{
+    id: string;
+    name: string;
+    disciplineId: string;
+    status: string;
+    notes: string | null | undefined;
+    correct: number;
+    wrong: number;
+    order: number;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>(null);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [topicsState, setTopicsState] = useState<{
+    id: string;
+    name: string;
+    disciplineId: string;
+    status: string;
+    notes: string | null | undefined;
+    correct: number;
+    wrong: number;
+    order: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }[]>([]);
 
   const topicSessionsQuery = useQuery({
     ...trpc.getTimeSessionsByTopic.queryOptions({ topicId: studyTopic?.id ?? '' }),
@@ -85,6 +245,13 @@ function DisciplinePage() {
     },
   });
 
+  const reorderTopicsMutation = useMutation({
+    ...trpc.reorderTopics.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.getTopicsByDiscipline.queryKey({ disciplineId: discipline.id }) });
+    },
+  });
+
   const deleteTopicMutation = useMutation({
     ...trpc.deleteTopic.mutationOptions(),
     onSuccess: () => {
@@ -108,6 +275,34 @@ function DisciplinePage() {
     });
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      setTopicsState((items) => {
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over?.id);
+
+        const newItems = arrayMove(items, oldIndex, newIndex);
+
+        const topicOrders = newItems.map((topic, index) => ({
+          topicId: topic.id,
+          order: index,
+        }));
+
+        reorderTopicsMutation.mutate({ topicOrders });
+
+        return newItems;
+      });
+    }
+  }
   const handleDeleteTopic = (topicId: string) => {
     if (confirm("Tem certeza que deseja excluir este tópico?")) {
       deleteTopicMutation.mutate({ topicId });
@@ -196,61 +391,32 @@ function DisciplinePage() {
                   <p className="text-muted-foreground">Carregando tópicos...</p>
                 </CardContent>
               </Card>
-            ) : topics.map(topic => {
-              const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
-              return (
-                <Card key={topic.id} className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer p-0" onClick={() => setStudyTopic(topic)}>
-                  <CardContent className="p-4 lg:p-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                        <h3 className="font-semibold text-lg">{topic.name}</h3>
-                        {getStatusBadge(topic.status)}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
-                            title="Questões corretas - Clique para editar"
-                            onClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                            {topic.correct}
-                          </div>
-                          <div
-                            className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/30 rounded-md text-sm font-semibold text-destructive cursor-pointer hover:bg-destructive/20 transition-all"
-                            title="Questões erradas - Clique para editar"
-                            onClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
-                          >
-                            <X className="h-4 w-4" />
-                            {topic.wrong}
-                          </div>
-                        </div>
-
-                        <div
-                          className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/30 rounded-md text-sm font-semibold text-primary cursor-pointer hover:bg-primary/20 transition-all"
-                          title="Performance - Clique para editar"
-                          onClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
-                        >
-                          <Percent className="h-4 w-4" />
-                          {performance.toFixed(0)}
-                        </div>
-                        <TopicTime topicId={topic.id} disciplineId={discipline.id} studyId={discipline.studyId!} showButton={true} />
-                        <div className="flex items-center gap-1 ml-auto sm:ml-0" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(topic)} title="Editar">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteTopic(topic.id)} title="Excluir">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-            {!topicsQuery.isLoading && topics.length === 0 && (
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                  {topicsState.map(topic => {
+                    const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
+                    return (
+                      <SortableTopicCard
+                        key={topic.id}
+                        topic={topic}
+                        performance={performance}
+                        studyId={discipline.studyId!}
+                        onTopicClick={() => setStudyTopic(topic)}
+                        onEditClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
+                        onDeleteClick={() => handleDeleteTopic(topic.id)}
+                        getStatusBadge={getStatusBadge}
+                      />
+                    );
+                  })}
+                </SortableContext>
+              </DndContext>
+            )}
+            {!topicsQuery.isLoading && topicsState.length === 0 && (
               <Card>
                 <CardContent className="text-center py-12">
                   <Plus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

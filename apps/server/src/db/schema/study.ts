@@ -32,6 +32,7 @@ export const topic = pgTable("topic", {
 	notes: text("notes"),
 	correct: integer("correct").notNull().default(0),
 	wrong: integer("wrong").notNull().default(0),
+	order: integer("order").notNull().default(0),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
