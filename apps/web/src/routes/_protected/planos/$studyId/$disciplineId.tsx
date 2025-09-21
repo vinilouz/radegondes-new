@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
 import { TopicTime } from '@/components/TopicTime';
-import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent } from 'lucide-react';
+import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent, Circle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useEffect, useState, useMemo } from 'react';
@@ -12,9 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { trpc } from '@/utils/trpc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { formatTime } from '@/lib/utils';
 import {
   DndContext,
@@ -189,7 +188,6 @@ function DisciplinePage() {
     createdAt: Date;
     updatedAt: Date;
   } | null>(null);
-  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [topicsState, setTopicsState] = useState<{
     id: string;
     name: string;
@@ -215,14 +213,6 @@ function DisciplinePage() {
     }
   }, [topics.map(t => t.id).join(',')]);
 
-  useEffect(() => {
-    if (studyTopic && studyTopic.correct + studyTopic.wrong > 0) {
-      const performance = (studyTopic.correct / (studyTopic.correct + studyTopic.wrong)) * 100;
-      if (performance === 100 && studyTopic.status !== 'completed') {
-        setShowCompletionDialog(true);
-      }
-    }
-  }, [studyTopic?.correct, studyTopic?.wrong, studyTopic?.status]);
 
   const totalDisciplineTime = useMemo(() => topics.map(t => t.id).reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0), [topics, storeState]);
   const completedTopics = useMemo(() => topics.filter(topic => topic.status === "completed").length, [topics]);
@@ -309,16 +299,6 @@ function DisciplinePage() {
     }
   };
 
-  const handleAutoCompleteConfirm = () => {
-    if (studyTopic) {
-      setStudyTopic(prev => prev ? { ...prev, status: 'completed' } : null);
-    }
-    setShowCompletionDialog(false);
-  };
-
-  const handleAutoCompleteDismiss = () => {
-    setShowCompletionDialog(false);
-  };
 
   const getStatusBadge = (status: string) => {
     if (status === 'completed') {
@@ -446,9 +426,16 @@ function DisciplinePage() {
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, correct: Math.max(0, t.correct - 1) } : null)}>
                       <Minus className="h-4 w-4" />
                     </Button>
-                    <div className="flex-1 text-center py-2 bg-success/10 text-success rounded border">
-                      <span className="text-xl font-bold">{studyTopic.correct}</span>
-                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={studyTopic.correct}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 0;
+                        setStudyTopic(t => t ? { ...t, correct: Math.max(0, value) } : null);
+                      }}
+                      className="text-center py-2 bg-success/10 text-success border-success/30 focus:border-success/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, correct: t.correct + 1 } : null)}>
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -461,9 +448,16 @@ function DisciplinePage() {
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, wrong: Math.max(0, t.wrong - 1) } : null)}>
                       <Minus className="h-4 w-4" />
                     </Button>
-                    <div className="flex-1 text-center py-2 bg-destructive/10 text-destructive rounded border">
-                      <span className="text-xl font-bold">{studyTopic.wrong}</span>
-                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={studyTopic.wrong}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 0;
+                        setStudyTopic(t => t ? { ...t, wrong: Math.max(0, value) } : null);
+                      }}
+                      className="text-center py-2 bg-destructive/10 text-destructive border-destructive/30 focus:border-destructive/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, wrong: t.wrong + 1 } : null)}>
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -485,20 +479,31 @@ function DisciplinePage() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="topic-completed"
-                  checked={studyTopic.status === 'completed'}
-                  onCheckedChange={(checked) =>
+              <div className="flex items-center space-x-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
                     setStudyTopic(t => t ? {
                       ...t,
-                      status: checked ? 'completed' : 'not_started'
+                      status: t.status === 'completed' ? 'not_started' : 'completed'
                     } : null)
                   }
-                />
-                <Label htmlFor="topic-completed" className="text-sm font-medium cursor-pointer">
-                  Marcar como concluído
-                </Label>
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                    studyTopic.status === 'completed'
+                      ? 'bg-success/10 text-success hover:bg-success/20 border border-success/30'
+                      : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-muted'
+                  }`}
+                >
+                  {studyTopic.status === 'completed' ? (
+                    <Check className="h-5 w-5" />
+                  ) : (
+                    <Circle className="h-5 w-5" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {studyTopic.status === 'completed' ? 'Concluído' : 'Marcar como concluído'}
+                  </span>
+                </Button>
               </div>
 
               <div>
@@ -546,24 +551,6 @@ function DisciplinePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-        <DialogContent className="w-[95%] sm:w-full max-w-md">
-          <DialogHeader>
-            <DialogTitle>🎉 Performance 100%!</DialogTitle>
-            <DialogDescription>
-              Parabéns! Você atingiu 100% de acertos neste tópico. Deseja marcar como concluído?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleAutoCompleteDismiss}>
-              Não, continuar estudando
-            </Button>
-            <Button onClick={handleAutoCompleteConfirm}>
-              Sim, marcar como concluído
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
