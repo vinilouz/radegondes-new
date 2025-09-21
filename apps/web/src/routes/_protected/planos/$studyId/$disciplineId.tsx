@@ -78,20 +78,12 @@ function SortableTopicCard({
     attributes,
     listeners,
     setNodeRef,
-    transform,
-    transition,
   } = useSortable({ id: topic.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
 
   return (
     <Card
       ref={setNodeRef}
-      style={style}
-      className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer p-0"
+      className="group relative border rounded-xl shadow-sm cursor-pointer p-0 hover:border-primary hover:shadow-lg transition-all top-0 duration-200 hover:-top-1"
       onClick={onTopicClick}
     >
       <CardContent className="p-4 lg:p-6">
