@@ -472,7 +472,7 @@ export const appRouter = router({
         .select()
         .from(topic)
         .where(eq(topic.disciplineId, input.disciplineId))
-        .orderBy(asc(topic.createdAt));
+        .orderBy(asc(topic.order));
 
       return topics;
     }),

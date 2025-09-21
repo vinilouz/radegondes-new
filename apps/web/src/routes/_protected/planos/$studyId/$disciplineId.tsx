@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
 import { TopicTime } from '@/components/TopicTime';
-import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent, Circle, Check } from 'lucide-react';
+import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent, Circle, Check, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useEffect, useState, useMemo } from 'react';
@@ -33,7 +33,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
 
 export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId')({
   loader: async ({ params, context }) => {
@@ -44,7 +43,7 @@ export const Route = createFileRoute('/_protected/planos/$studyId/$disciplineId'
   component: DisciplinePage,
 });
 
-interface SortableTopicCardProps {
+interface TopicCardProps {
   topic: {
     id: string;
     name: string;
@@ -65,6 +64,10 @@ interface SortableTopicCardProps {
   getStatusBadge: (status: string) => React.ReactNode;
 }
 
+interface SortableTopicCardProps extends TopicCardProps {
+  isDraggingGlobal: boolean;
+}
+
 function SortableTopicCard({
   topic,
   performance,
@@ -78,72 +81,80 @@ function SortableTopicCard({
     attributes,
     listeners,
     setNodeRef,
+    transform,
+    transition,
   } = useSortable({ id: topic.id });
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
-    <Card
-      ref={setNodeRef}
-      className="group relative border rounded-xl shadow-sm cursor-pointer p-0 hover:border-primary hover:shadow-lg transition-all top-0 duration-200 hover:-top-1"
-      onClick={onTopicClick}
-    >
-      <CardContent className="p-4 lg:p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors p-1"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-              <h3 className="font-semibold text-lg">{topic.name}</h3>
-              {getStatusBadge(topic.status)}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <div className="flex items-center gap-2">
+    <div ref={setNodeRef} style={style}>
+      <Card
+        className="group relative border rounded-xl shadow-sm cursor-pointer p-0 hover:border-primary hover:shadow-lg transition-all"
+        onClick={onTopicClick}
+      >
+        <CardContent className="p-4 lg:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <div
-                className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
-                title="Questões corretas - Clique para editar"
-                onClick={onEditClick}
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors p-1"
+                onClick={(e) => e.stopPropagation()}
               >
-                <CheckCircle2 className="h-4 w-4" />
-                {topic.correct}
+                <GripVertical className="h-4 w-4" />
               </div>
-              <div
-                className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/30 rounded-md text-sm font-semibold text-destructive cursor-pointer hover:bg-destructive/20 transition-all"
-                title="Questões erradas - Clique para editar"
-                onClick={onEditClick}
-              >
-                <X className="h-4 w-4" />
-                {topic.wrong}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                <h3 className="font-semibold text-lg">{topic.name}</h3>
+                {getStatusBadge(topic.status)}
               </div>
             </div>
 
-            <div
-              className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/30 rounded-md text-sm font-semibold text-primary cursor-pointer hover:bg-primary/20 transition-all"
-              title="Performance - Clique para editar"
-              onClick={onEditClick}
-            >
-              <Percent className="h-4 w-4" />
-              {performance.toFixed(0)}
-            </div>
-            <TopicTime topicId={topic.id} disciplineId={topic.disciplineId} studyId={studyId} showButton={true} />
-            <div className="flex items-center gap-1 ml-auto sm:ml-0" onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEditClick} title="Editar">
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onDeleteClick} title="Excluir">
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
+                  title="Questões corretas - Clique para editar"
+                  onClick={onEditClick}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {topic.correct}
+                </div>
+                <div
+                  className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/30 rounded-md text-sm font-semibold text-destructive cursor-pointer hover:bg-destructive/20 transition-all"
+                  title="Questões erradas - Clique para editar"
+                  onClick={onEditClick}
+                >
+                  <X className="h-4 w-4" />
+                  {topic.wrong}
+                </div>
+              </div>
+
+              <div
+                className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/30 rounded-md text-sm font-semibold text-primary cursor-pointer hover:bg-primary/20 transition-all"
+                title="Performance - Clique para editar"
+                onClick={onEditClick}
+              >
+                <Percent className="h-4 w-4" />
+                {performance.toFixed(0)}
+              </div>
+              <TopicTime topicId={topic.id} disciplineId={topic.disciplineId} studyId={studyId} showButton={true} />
+              <div className="flex items-center gap-1 ml-auto sm:ml-0" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEditClick} title="Editar">
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onDeleteClick} title="Excluir">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -152,6 +163,7 @@ function DisciplinePage() {
   const navigate = useNavigate();
   const storeState = useStore(studyTimerStore);
   const queryClient = useQueryClient();
+  const [isDraggingGlobal, setIsDraggingGlobal] = useState(false);
 
   const topicsQuery = useQuery({
     ...trpc.getTopicsByDiscipline.queryOptions({ disciplineId: discipline.id }),
@@ -267,6 +279,9 @@ function DisciplinePage() {
   function handleDragEnd(event: any) {
     const { active, over } = event;
 
+    // Reset dragging state when drag ends
+    setIsDraggingGlobal(false);
+
     if (active.id !== over?.id) {
       setTopicsState((items) => {
         const oldIndex = items.findIndex(item => item.id === active.id);
@@ -367,7 +382,9 @@ function DisciplinePage() {
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                onDragStart={() => setIsDraggingGlobal(true)}
                 onDragEnd={handleDragEnd}
+                onDragCancel={() => setIsDraggingGlobal(false)}
               >
                 <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
                   {topicsState.map(topic => {
@@ -378,6 +395,7 @@ function DisciplinePage() {
                         topic={topic}
                         performance={performance}
                         studyId={discipline.studyId!}
+                        isDraggingGlobal={isDraggingGlobal}
                         onTopicClick={() => setStudyTopic(topic)}
                         onEditClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
                         onDeleteClick={() => handleDeleteTopic(topic.id)}
