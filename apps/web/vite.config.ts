@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
 			tanstackRouter(),
 			react(),
 			VitePWA({
-				registerType: "autoUpdate",
+				registerType: "prompt",
 				manifest: {
 					name: env.VITE_APP_NAME,
 					short_name: env.VITE_APP_SHORT_NAME,
@@ -37,8 +37,65 @@ export default defineConfig(({ mode }) => {
 					config: true
 				},
 				devOptions: {
-					enabled: !isProduction
+					enabled: true,
+					type: "module"
 				},
+				workbox: {
+					runtimeCaching: [
+						{
+							urlPattern: ({ url }) => url.pathname.startsWith('/assets/index-') && url.pathname.endsWith('.js'),
+							handler: "NetworkFirst",
+							options: {
+								cacheName: "js-cache",
+								expiration: {
+									maxEntries: 10,
+									maxAgeSeconds: 600
+								},
+								cacheableResponse: {
+									statuses: [0, 200]
+								}
+							}
+						},
+						{
+							urlPattern: ({ url }) => url.pathname.startsWith('/assets/index-') && url.pathname.endsWith('.css'),
+							handler: "NetworkFirst",
+							options: {
+								cacheName: "css-cache",
+								expiration: {
+									maxEntries: 10,
+									maxAgeSeconds: 600
+								},
+								cacheableResponse: {
+									statuses: [0, 200]
+								}
+							}
+						},
+						{
+							urlPattern: /\.(?:png|jpg|jpeg|svg|gif|ico|webp)$/,
+							handler: "CacheFirst",
+							options: {
+								cacheName: "image-cache",
+								expiration: {
+									maxEntries: 50,
+									maxAgeSeconds: 86400 // 24 horas
+								}
+							}
+						},
+						{
+							urlPattern: /\.(?:woff2?|eot|ttf|otf)$/,
+							handler: "CacheFirst",
+							options: {
+								cacheName: "font-cache",
+								expiration: {
+									maxEntries: 10,
+									maxAgeSeconds: 86400 // 24 horas
+								}
+							}
+						}
+					],
+					clientsClaim: true,
+					skipWaiting: true,
+				}
 			})
 		],
 		resolve: {
