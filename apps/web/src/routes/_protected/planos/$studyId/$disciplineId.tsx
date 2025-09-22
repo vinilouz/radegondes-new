@@ -511,7 +511,7 @@ function DisciplinePage() {
                     <Circle className="h-5 w-5" />
                   )}
                   <span className="text-sm font-medium">
-                    {studyTopic.status === 'completed' ? 'Concluído' : 'Marcar como concluído'}
+                    {studyTopic.status === 'completed' ? 'Concluído' : 'Marcar como concluído para atualizar seu progresso na disciplina'}
                   </span>
                 </Button>
               </div>

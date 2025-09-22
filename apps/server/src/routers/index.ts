@@ -2,7 +2,7 @@ import { protectedProcedure, publicProcedure, router, loggerMiddleware } from ".
 import { timerRouter } from "./timer";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
-import { eq, and, desc, asc, count, gte } from "drizzle-orm";
+import { eq, and, desc, asc, count, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -27,8 +27,8 @@ export const appRouter = router({
         name: study.name,
         description: study.description,
         createdAt: study.createdAt,
-        disciplineCount: count(discipline.id),
-        topicCount: count(topic.id),
+        disciplineCount: sql<number>`COUNT(DISTINCT ${discipline.id})`,
+        topicCount: sql<number>`COUNT(DISTINCT ${topic.id})`,
       })
       .from(study)
       .leftJoin(discipline, eq(discipline.studyId, study.id))

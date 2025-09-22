@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
 					name: env.VITE_APP_NAME,
 					short_name: env.VITE_APP_SHORT_NAME,
 					description: env.VITE_APP_DESCRIPTION,
-					theme_color: env.VITE_THEME_COLOR,
+					theme_color: env.VITE_THEME_COLOR || "#E66912",
 				},
 				pwaAssets: {
 					disabled: false,
