@@ -2,6 +2,7 @@ import { protectedProcedure, publicProcedure, router, loggerMiddleware } from ".
 import { timerRouter } from "./timer";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
+import { user } from "../db/schema/auth";
 import { eq, and, desc, asc, count, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -151,13 +152,14 @@ export const appRouter = router({
           id: discipline.id,
           name: discipline.name,
           studyId: discipline.studyId,
+          estimatedHours: discipline.estimatedHours,
           createdAt: discipline.createdAt,
           topicCount: count(topic.id),
         })
         .from(discipline)
         .leftJoin(topic, eq(topic.disciplineId, discipline.id))
         .where(eq(discipline.studyId, input.studyId))
-        .groupBy(discipline.id, discipline.name, discipline.studyId, discipline.createdAt)
+        .groupBy(discipline.id, discipline.name, discipline.studyId, discipline.estimatedHours, discipline.createdAt)
         .orderBy(desc(discipline.createdAt));
 
       return disciplines;
@@ -167,6 +169,7 @@ export const appRouter = router({
     .input(z.object({
       studyId: z.string(),
       name: z.string().min(1),
+      estimatedHours: z.number().min(1).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
@@ -190,11 +193,12 @@ export const appRouter = router({
           id: disciplineId,
           name: input.name,
           studyId: input.studyId,
+          estimatedHours: input.estimatedHours || 1,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
 
-      return { id: disciplineId, name: input.name, studyId: input.studyId, createdAt: new Date(), updatedAt: new Date() };
+      return { id: disciplineId, name: input.name, studyId: input.studyId, estimatedHours: input.estimatedHours || 1, createdAt: new Date(), updatedAt: new Date() };
     }),
 
   getStudy: protectedProcedure
@@ -248,6 +252,7 @@ export const appRouter = router({
     .input(z.object({
       disciplineId: z.string(),
       name: z.string().min(1).optional(),
+      estimatedHours: z.number().min(1).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
@@ -269,6 +274,7 @@ export const appRouter = router({
 
       const updateData: any = {};
       if (input.name) updateData.name = input.name;
+      if (input.estimatedHours !== undefined) updateData.estimatedHours = input.estimatedHours;
       updateData.updatedAt = new Date();
 
       const updated = await db
@@ -673,6 +679,46 @@ export const appRouter = router({
       }
 
       return { success: true };
+    }),
+
+  getUserSettings: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
+
+      const userResult = await db
+        .select({
+          dailyStudyHours: user.dailyStudyHours,
+        })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+      if (!userResult.length) {
+        throw new Error("User not found");
+      }
+
+      return userResult[0];
+    }),
+
+  updateUserSettings: protectedProcedure
+    .input(z.object({
+      dailyStudyHours: z.number().min(1).max(24),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      const updated = await db
+        .update(user)
+        .set({
+          dailyStudyHours: input.dailyStudyHours,
+          updatedAt: new Date(),
+        })
+        .where(eq(user.id, userId))
+        .returning({
+          dailyStudyHours: user.dailyStudyHours,
+        });
+
+      return updated[0];
     }),
 
   getStudyStatistics: protectedProcedure

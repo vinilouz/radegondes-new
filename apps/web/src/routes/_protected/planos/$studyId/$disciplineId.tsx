@@ -116,6 +116,7 @@ function SortableTopicCard({
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">Registre aqui seu percentual de acertos</p>
                 <div
                   className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
                   title="Questões corretas - Clique para editar"
@@ -380,32 +381,32 @@ function DisciplinePage() {
                 </CardContent>
               </Card>
             ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={() => setIsDraggingGlobal(true)}
-                onDragEnd={handleDragEnd}
-                onDragCancel={() => setIsDraggingGlobal(false)}
-              >
-                <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                  {topicsState.map(topic => {
-                    const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
-                    return (
-                      <SortableTopicCard
-                        key={topic.id}
-                        topic={topic}
-                        performance={performance}
-                        studyId={discipline.studyId!}
-                        isDraggingGlobal={isDraggingGlobal}
-                        onTopicClick={() => setStudyTopic(topic)}
-                        onEditClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
-                        onDeleteClick={() => handleDeleteTopic(topic.id)}
-                        getStatusBadge={getStatusBadge}
-                      />
-                    );
-                  })}
-                </SortableContext>
-              </DndContext>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={() => setIsDraggingGlobal(true)}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={() => setIsDraggingGlobal(false)}
+                >
+                  <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                    {topicsState.map(topic => {
+                      const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
+                      return (
+                        <SortableTopicCard
+                          key={topic.id}
+                          topic={topic}
+                          performance={performance}
+                          studyId={discipline.studyId!}
+                          isDraggingGlobal={isDraggingGlobal}
+                          onTopicClick={() => setStudyTopic(topic)}
+                          onEditClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
+                          onDeleteClick={() => handleDeleteTopic(topic.id)}
+                          getStatusBadge={getStatusBadge}
+                        />
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
             )}
             {!topicsQuery.isLoading && topicsState.length === 0 && (
               <Card>
@@ -488,6 +489,7 @@ function DisciplinePage() {
                     {studyTopic.correct + studyTopic.wrong} questões respondidas
                   </p>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">Registre aqui seu percentual de acertos</p>
               </div>
 
               <div className="flex items-center space-x-3">

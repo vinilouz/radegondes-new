@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
-import { formatTime } from '@/lib/utils';
+import { formatTime, formatRemainingDays, calculateStudyProgress } from '@/lib/utils';
 import { useStore } from '@tanstack/react-store';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer } from "lucide-react";
+import { Plus, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer, Clock } from "lucide-react";
 import { Breadcrumb } from '@/components/Breadcrumb';
 import {
   DropdownMenu,
@@ -31,8 +31,10 @@ function StudyDetailsPage() {
   const navigate = useNavigate();
   const [isCreateDisciplineDialogOpen, setIsCreateDisciplineDialogOpen] = useState(false);
   const [newDisciplineName, setNewDisciplineName] = useState("");
+  const [newDisciplineEstimatedHours, setNewDisciplineEstimatedHours] = useState(1);
   const [editingDiscipline, setEditingDiscipline] = useState<string | null>(null);
   const [editDisciplineName, setEditDisciplineName] = useState("");
+  const [editDisciplineEstimatedHours, setEditDisciplineEstimatedHours] = useState(1);
   const [newTopicNames, setNewTopicNames] = useState<Record<string, string>>({});
   const [editingTopics, setEditingTopics] = useState<Record<string, string>>({});
 
@@ -59,6 +61,7 @@ function StudyDetailsPage() {
       queryClient.invalidateQueries({ queryKey: trpc.getStudy.queryKey() });
       setIsCreateDisciplineDialogOpen(false);
       setNewDisciplineName("");
+      setNewDisciplineEstimatedHours(1);
     },
   });
 
@@ -69,6 +72,7 @@ function StudyDetailsPage() {
       queryClient.invalidateQueries({ queryKey: trpc.getTopics.queryKey() });
       setEditingDiscipline(null);
       setEditDisciplineName("");
+      setEditDisciplineEstimatedHours(1);
     },
   });
 
@@ -115,9 +119,10 @@ function StudyDetailsPage() {
     });
   };
 
-  const handleEditDiscipline = (discipline: { id: string; name: string }) => {
+  const handleEditDiscipline = (discipline: { id: string; name: string; estimatedHours?: number }) => {
     setEditingDiscipline(discipline.id);
     setEditDisciplineName(discipline.name);
+    setEditDisciplineEstimatedHours(discipline.estimatedHours || 1);
   };
 
   const handleUpdateDiscipline = () => {
@@ -126,6 +131,7 @@ function StudyDetailsPage() {
     updateDisciplineMutation.mutate({
       disciplineId: editingDiscipline,
       name: editDisciplineName,
+      estimatedHours: editDisciplineEstimatedHours,
     });
   };
 
@@ -220,6 +226,11 @@ function StudyDetailsPage() {
   const totalStudyTime = allTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
   const completedTopics = topics.filter(topic => topic.status === "completed").length;
 
+  const dailyStudyHours = 3; // Valor padrão enquanto os tipos não são atualizados
+  const totalEstimatedHours = disciplines.reduce((sum, discipline) => sum + 1, 0); // Usar 1 enquanto estimatedHours não está disponível
+  const studiedHours = totalStudyTime / 1000 / 60 / 60; // Converter ms para horas
+  const remainingDaysText = formatRemainingDays(totalEstimatedHours, studiedHours, dailyStudyHours);
+
   const overallProgress = disciplines.length > 0
     ? disciplines.reduce((sum, discipline) => {
         const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);
@@ -255,54 +266,61 @@ function StudyDetailsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="flex flex-row items-center p-4 lg:p-6">
-          <div className="mr-4 lg:mr-6">
-            <BookOpen className="h-8 w-8 text-primary" />
+        <Card className="flex flex-row items-center p-3 md:p-4">
+          <div className="mr-3 md:mr-4">
+            <BookOpen className="h-6 w-6 md:h-8 md:w-8 text-primary" />
           </div>
           <div>
-            <div className="text-3xl font-bold">{disciplines.length}</div>
-            <p className="text-sm text-muted-foreground">Disciplinas</p>
+            <div className="text-xl md:text-3xl font-bold">{disciplines.length}</div>
+            <p className="text-xs md:text-sm text-muted-foreground">Disciplinas</p>
           </div>
         </Card>
 
-        <Card className="flex flex-row items-center p-4 lg:p-6">
-          <div className="mr-4 lg:mr-6">
-            <BookCopy className="h-8 w-8 text-primary" />
+        <Card className="flex flex-row items-center p-3 md:p-4">
+          <div className="mr-3 md:mr-4">
+            <BookCopy className="h-6 w-6 md:h-8 md:w-8 text-primary" />
           </div>
           <div>
-            <div className="text-3xl font-bold">{topics.length}</div>
-            <p className="text-sm text-muted-foreground">Tópicos</p>
+            <div className="text-xl md:text-3xl font-bold">{topics.length}</div>
+            <p className="text-xs md:text-sm text-muted-foreground">Tópicos</p>
           </div>
         </Card>
 
-        <Card className="flex flex-row items-center p-4 lg:p-6">
-          <div className="mr-4 lg:mr-6">
-            <Timer className="h-8 w-8 text-primary" />
+        <Card className="flex flex-row items-center p-3 md:p-4">
+          <div className="mr-3 md:mr-4">
+            <Timer className="h-6 w-6 md:h-8 md:w-8 text-primary" />
           </div>
           <div>
-            <div className="text-3xl font-bold">{formatTime(totalStudyTime)}</div>
-            <p className="text-sm text-muted-foreground">Horas de Estudo</p>
+            <div className="text-xl md:text-3xl font-bold">{formatTime(totalStudyTime)}</div>
+            <p className="text-xs md:text-sm text-muted-foreground">Tempo Estudado</p>
           </div>
         </Card>
       </div>
 
-      <Card className="mb-8">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-semibold text-muted-foreground">Progresso Geral do Estudo</span>
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium">Progresso dos Tópicos</span>
             <span className="text-sm font-bold text-primary">{Math.round(overallProgress)}%</span>
           </div>
-          <div className="w-full bg-muted/50 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-muted rounded-full h-2 mb-3">
             <div
-              className="bg-primary h-3 rounded-full transition-all duration-300"
+              className="bg-primary h-2 rounded-full transition-all duration-300"
               style={{ width: `${overallProgress}%` }}
             ></div>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Média de progresso entre {disciplines.length} disciplina{disciplines.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex justify-between items-center">
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground block">Baseado na conclusão de tópicos</span>
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">Conclusão estimada em: {remainingDaysText}</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Disciplinas</h2>
@@ -331,6 +349,20 @@ function StudyDetailsPage() {
                   placeholder="Digite o nome da disciplina"
                   className="mt-1"
                 />
+              </div>
+              <div>
+                <Label htmlFor="discipline-hours">Horas Estimadas</Label>
+                <Input
+                  id="discipline-hours"
+                  type="number"
+                  min="1"
+                  value={newDisciplineEstimatedHours}
+                  onChange={(e) => setNewDisciplineEstimatedHours(parseInt(e.target.value) || 1)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tempo estimado para concluir esta disciplina
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -470,7 +502,7 @@ function StudyDetailsPage() {
                       placeholder="Adicionar tópico..."
                       value={newTopicNames[discipline.id] || ""}
                       onChange={(e) => setNewTopicNames(prev => ({ ...prev, [discipline.id]: e.target.value }))}
-                      onKeyPress={(e) => {
+                      onKeyDown={(e) => {
                         if (e.key === "Enter") handleCreateTopic(discipline.id);
                       }}
                       onClick={(e) => { e.stopPropagation(); }}
@@ -508,6 +540,20 @@ function StudyDetailsPage() {
                 onChange={(e) => setEditDisciplineName(e.target.value)}
                 className="mt-1"
               />
+            </div>
+            <div>
+              <Label htmlFor="edit-discipline-hours">Horas Estimadas</Label>
+              <Input
+                id="edit-discipline-hours"
+                type="number"
+                min="1"
+                value={editDisciplineEstimatedHours}
+                onChange={(e) => setEditDisciplineEstimatedHours(parseInt(e.target.value) || 1)}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Tempo estimado para concluir esta disciplina
+              </p>
             </div>
           </div>
           <DialogFooter>

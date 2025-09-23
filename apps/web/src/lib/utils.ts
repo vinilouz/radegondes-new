@@ -28,3 +28,24 @@ export function formatTimeRelative(ms: number): string {
   const hours = Math.round(totalSeconds / 3600);
   return `${hours} hora${hours !== 1 ? 's' : ''}`;
 }
+
+export function formatRemainingDays(totalEstimatedHours: number, studiedHours: number, dailyStudyHours: number): string {
+  const remainingHours = Math.max(0, totalEstimatedHours - studiedHours);
+  const remainingDays = Math.ceil(remainingHours / dailyStudyHours);
+
+  if (remainingDays === 0 || remainingHours <= 0) {
+    return "0 dias";
+  }
+
+  if (remainingDays === 1) {
+    return "1 dia";
+  }
+
+  return `${remainingDays} dias`;
+}
+
+export function calculateStudyProgress(totalEstimatedHours: number, studiedHours: number): number {
+  if (totalEstimatedHours === 0) return 0;
+  const progress = (studiedHours / totalEstimatedHours) * 100;
+  return Math.min(100, Math.max(0, progress));
+}
