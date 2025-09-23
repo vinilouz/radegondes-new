@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
 import { TopicTime } from '@/components/TopicTime';
-import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent, Circle, Check, GripVertical } from 'lucide-react';
+import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent, Circle, Check, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useEffect, useState, useMemo } from 'react';
@@ -102,10 +102,11 @@ function SortableTopicCard({
               <div
                 {...attributes}
                 {...listeners}
-                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors p-1"
+                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors p-1 flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
-                <GripVertical className="h-4 w-4" />
+                <ChevronUp className="h-3 w-3" />
+                <ChevronDown className="h-3 w-3" />
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
                 <h3 className="font-semibold text-lg">{topic.name}</h3>

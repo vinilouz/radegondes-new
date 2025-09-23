@@ -220,6 +220,15 @@ function StudyDetailsPage() {
   const totalStudyTime = allTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
   const completedTopics = topics.filter(topic => topic.status === "completed").length;
 
+  const overallProgress = disciplines.length > 0
+    ? disciplines.reduce((sum, discipline) => {
+        const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);
+        const completedDisciplineTopics = disciplineTopics.filter(topic => topic.status === "completed").length;
+        const disciplineProgress = disciplineTopics.length > 0 ? (completedDisciplineTopics / disciplineTopics.length) * 100 : 0;
+        return sum + disciplineProgress;
+      }, 0) / disciplines.length
+    : 0;
+
   return (
     <div className="container mx-auto p-6">
       <Breadcrumb />
@@ -276,6 +285,24 @@ function StudyDetailsPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="mb-8">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-semibold text-muted-foreground">Progresso Geral do Estudo</span>
+            <span className="text-sm font-bold text-primary">{Math.round(overallProgress)}%</span>
+          </div>
+          <div className="w-full bg-muted/50 rounded-full h-3 overflow-hidden">
+            <div
+              className="bg-primary h-3 rounded-full transition-all duration-300"
+              style={{ width: `${overallProgress}%` }}
+            ></div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Média de progresso entre {disciplines.length} disciplina{disciplines.length !== 1 ? 's' : ''}
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Disciplinas</h2>
