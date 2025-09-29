@@ -91,6 +91,34 @@ export const timerRouter = router({
       return { success: true };
     }),
 
+  updateSessionDuration: protectedProcedure
+    .input(z.object({
+      sessionId: z.string().uuid(),
+      duration: z.number().int().min(0).max(86400000),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const sessionCheck = await db
+        .select({ id: timeSession.id })
+        .from(timeSession)
+        .innerJoin(topic, eq(timeSession.topicId, topic.id))
+        .innerJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .innerJoin(study, eq(discipline.studyId, study.id))
+        .where(and(
+          eq(timeSession.id, input.sessionId),
+          eq(study.userId, ctx.session.user.id)
+        ));
+
+      if (!sessionCheck.length) throw new Error("Session not found or access denied");
+
+      const result = await db
+        .update(timeSession)
+        .set({ duration: input.duration })
+        .where(eq(timeSession.id, input.sessionId))
+        .returning();
+
+      return result[0];
+    }),
+
   // Busca totais
   getTotals: protectedProcedure
     .input(

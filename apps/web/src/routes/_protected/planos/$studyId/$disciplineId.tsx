@@ -182,6 +182,10 @@ function DisciplinePage() {
   }, [topics]);
 
   const [newTopicName, setNewTopicName] = useState("");
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingHours, setEditingHours] = useState("");
+  const [editingMinutes, setEditingMinutes] = useState("");
+  const [editingSeconds, setEditingSeconds] = useState("");
   const [studyTopic, setStudyTopic] = useState<{
     id: string;
     name: string;
@@ -255,6 +259,14 @@ function DisciplinePage() {
     },
   });
 
+  const updateSessionDurationMutation = useMutation({
+    ...trpc.timer.updateSessionDuration.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.getTimeSessionsByTopic.queryKey({ topicId: studyTopic?.id ?? '' }) });
+      if (studyTopic?.id) timerActions.loadTotals([studyTopic.id]);
+    },
+  });
+
   const handleCreateTopic = () => {
     if (!newTopicName.trim()) return;
     createTopicMutation.mutate({ disciplineId: discipline.id, name: newTopicName });
@@ -270,6 +282,42 @@ function DisciplinePage() {
       notes: studyTopic.notes || undefined
     });
   }
+
+  const SECONDS_PER_HOUR = 3600;
+  const SECONDS_PER_MINUTE = 60;
+  const MS_PER_SECOND = 1000;
+  const MAX_HOURS = 24;
+  const MAX_MINUTES_SECONDS = 59;
+
+  const handleUpdateSessionDuration = (sessionId: string) => {
+    const hours = parseInt(editingHours) || 0;
+    const minutes = parseInt(editingMinutes) || 0;
+    const seconds = parseInt(editingSeconds) || 0;
+
+    if (minutes > MAX_MINUTES_SECONDS || seconds > MAX_MINUTES_SECONDS) return;
+
+    const totalMs = (hours * SECONDS_PER_HOUR + minutes * SECONDS_PER_MINUTE + seconds) * MS_PER_SECOND;
+
+    if (totalMs > MAX_HOURS * SECONDS_PER_HOUR * MS_PER_SECOND) return;
+
+    updateSessionDurationMutation.mutate({ sessionId, duration: totalMs });
+
+    setEditingSessionId(null);
+    setEditingHours("");
+    setEditingMinutes("");
+    setEditingSeconds("");
+  };
+
+  const startEditingSession = (sessionId: string, currentDuration: number) => {
+    setEditingSessionId(sessionId);
+    const totalSeconds = Math.floor(currentDuration / MS_PER_SECOND);
+    const hours = Math.floor(totalSeconds / SECONDS_PER_HOUR);
+    const minutes = Math.floor((totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+    const seconds = totalSeconds % SECONDS_PER_MINUTE;
+    setEditingHours(hours.toString().padStart(2, '0'));
+    setEditingMinutes(minutes.toString().padStart(2, '0'));
+    setEditingSeconds(seconds.toString().padStart(2, '0'));
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -539,9 +587,190 @@ function DisciplinePage() {
                 ) : topicSessionsQuery.data && topicSessionsQuery.data.length > 0 ? (
                   <div className="space-y-2 max-h-32 overflow-y-auto mt-2">
                     {topicSessionsQuery.data.map(session => (
-                      <div key={session.id} className="flex justify-between items-center p-2 bg-muted rounded-lg">
+                      <div key={session.id} className="flex justify-between items-center p-2 bg-muted rounded-lg group">
                         <span className="text-sm">{new Date(session.startTime).toLocaleString('pt-BR')}</span>
-                        <span className="text-sm font-mono font-bold">{formatTime(session.duration)}</span>
+                        <div className="flex items-center gap-2">
+                          {editingSessionId === session.id ? (
+                            <div className="flex items-center gap-1">
+                              <div className="time-input-container flex items-center gap-1 bg-background border rounded-md">
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={2}
+                                  value={editingHours}
+                                  onChange={(e) => {
+                                    const rawValue = e.target.value;
+                                    // Allow empty input
+                                    if (rawValue === '') {
+                                      setEditingHours('');
+                                      return;
+                                    }
+                                    // Only allow numbers
+                                    if (!/^\d*$/.test(rawValue)) return;
+                                    const value = parseInt(rawValue);
+                                    // Allow typing in progress, only validate max
+                                    if (!isNaN(value) && value >= 0 && value <= 23) {
+                                      setEditingHours(rawValue);
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    // Format to 2 digits on blur
+                                    if (editingHours) {
+                                      setEditingHours(parseInt(editingHours).toString().padStart(2, '0'));
+                                    }
+                                    // Only save if blur is not caused by focusing on another time field
+                                    const target = e.relatedTarget as HTMLElement;
+                                    if (!target?.closest('.time-input-container')) {
+                                      handleUpdateSessionDuration(session.id);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateSessionDuration(session.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingSessionId(null);
+                                      setEditingHours("");
+                                      setEditingMinutes("");
+                                      setEditingSeconds("");
+                                    } else if (e.key === 'Tab' && !e.shiftKey) {
+                                      // Move to minutes field on Tab
+                                      e.preventDefault();
+                                      const minutesInput = e.currentTarget.parentElement?.querySelector('input[placeholder="MM"]') as HTMLInputElement;
+                                      minutesInput?.focus();
+                                    }
+                                  }}
+                                  className="w-10 h-8 text-sm font-mono text-center border-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  placeholder="HH"
+                                  autoFocus
+                                />
+                                <span className="text-sm text-muted-foreground">:</span>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={2}
+                                  value={editingMinutes}
+                                  onChange={(e) => {
+                                    const rawValue = e.target.value;
+                                    // Allow empty input
+                                    if (rawValue === '') {
+                                      setEditingMinutes('');
+                                      return;
+                                    }
+                                    // Only allow numbers
+                                    if (!/^\d*$/.test(rawValue)) return;
+                                    const value = parseInt(rawValue);
+                                    // Allow typing in progress, only validate max
+                                    if (!isNaN(value) && value >= 0 && value <= 59) {
+                                      setEditingMinutes(rawValue);
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    // Format to 2 digits on blur
+                                    if (editingMinutes) {
+                                      setEditingMinutes(parseInt(editingMinutes).toString().padStart(2, '0'));
+                                    }
+                                    // Only save if blur is not caused by focusing on another time field
+                                    const target = e.relatedTarget as HTMLElement;
+                                    if (!target?.closest('.time-input-container')) {
+                                      handleUpdateSessionDuration(session.id);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateSessionDuration(session.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingSessionId(null);
+                                      setEditingHours("");
+                                      setEditingMinutes("");
+                                      setEditingSeconds("");
+                                    } else if (e.key === 'Tab' && !e.shiftKey) {
+                                      // Move to seconds field on Tab
+                                      e.preventDefault();
+                                      const secondsInput = e.currentTarget.parentElement?.querySelector('input[placeholder="SS"]') as HTMLInputElement;
+                                      secondsInput?.focus();
+                                    } else if (e.key === 'Tab' && e.shiftKey) {
+                                      // Move to hours field on Shift+Tab
+                                      e.preventDefault();
+                                      const hoursInput = e.currentTarget.parentElement?.querySelector('input[placeholder="HH"]') as HTMLInputElement;
+                                      hoursInput?.focus();
+                                    }
+                                  }}
+                                  className="w-10 h-8 text-sm font-mono text-center border-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  placeholder="MM"
+                                />
+                                <span className="text-sm text-muted-foreground">:</span>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={2}
+                                  value={editingSeconds}
+                                  onChange={(e) => {
+                                    const rawValue = e.target.value;
+                                    // Allow empty input
+                                    if (rawValue === '') {
+                                      setEditingSeconds('');
+                                      return;
+                                    }
+                                    // Only allow numbers
+                                    if (!/^\d*$/.test(rawValue)) return;
+                                    const value = parseInt(rawValue);
+                                    // Allow typing in progress, only validate max
+                                    if (!isNaN(value) && value >= 0 && value <= 59) {
+                                      setEditingSeconds(rawValue);
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    // Format to 2 digits on blur
+                                    if (editingSeconds) {
+                                      setEditingSeconds(parseInt(editingSeconds).toString().padStart(2, '0'));
+                                    }
+                                    // Only save if blur is not caused by focusing on another time field
+                                    const target = e.relatedTarget as HTMLElement;
+                                    if (!target?.closest('.time-input-container')) {
+                                      handleUpdateSessionDuration(session.id);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateSessionDuration(session.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingSessionId(null);
+                                      setEditingHours("");
+                                      setEditingMinutes("");
+                                      setEditingSeconds("");
+                                    } else if (e.key === 'Tab' && e.shiftKey) {
+                                      // Move to minutes field on Shift+Tab
+                                      e.preventDefault();
+                                      const minutesInput = e.currentTarget.parentElement?.querySelector('input[placeholder="MM"]') as HTMLInputElement;
+                                      minutesInput?.focus();
+                                    }
+                                  }}
+                                  className="w-10 h-8 text-sm font-mono text-center border-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  placeholder="SS"
+                                />
+                              </div>
+                              {updateSessionDurationMutation.isPending && (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-mono font-bold">{formatTime(session.duration)}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => startEditingSession(session.id, session.duration)}
+                                title="Editar duração"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

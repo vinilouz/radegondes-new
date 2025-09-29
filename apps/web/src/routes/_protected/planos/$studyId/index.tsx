@@ -298,24 +298,28 @@ function StudyDetailsPage() {
       </div>
 
       <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium">Progresso dos Tópicos</span>
-            <span className="text-sm font-bold text-primary">{Math.round(overallProgress)}%</span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2 mb-3">
-            <div
-              className="bg-primary h-2 rounded-full transition-all duration-300"
-              style={{ width: `${overallProgress}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="space-y-1">
-              <span className="text-xs text-muted-foreground block">Baseado na conclusão de tópicos</span>
-              <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">Conclusão estimada em: {remainingDaysText}</span>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-muted-foreground">Progresso dos Tópicos</span>
+                <span className="text-2xl font-bold text-primary">{Math.round(overallProgress)}%</span>
               </div>
+              <div className="w-full bg-muted rounded-full h-3">
+                <div
+                  className="bg-primary h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${overallProgress}%` }}
+                ></div>
+              </div>
+              <span className="text-xs text-muted-foreground">Baseado na conclusão de tópicos</span>
+            </div>
+
+            <div className="flex flex-col justify-center items-center md:items-start space-y-2 md:border-l md:pl-6">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                <span className="text-sm font-semibold text-muted-foreground">Conclusão Estimada</span>
+              </div>
+              <span className="text-2xl font-bold text-foreground">{remainingDaysText}</span>
             </div>
           </div>
         </CardContent>
@@ -350,6 +354,7 @@ function StudyDetailsPage() {
                   className="mt-1"
                 />
               </div>
+              {/* 
               <div>
                 <Label htmlFor="discipline-hours">Horas Estimadas</Label>
                 <Input
@@ -364,6 +369,7 @@ function StudyDetailsPage() {
                   Tempo estimado para concluir esta disciplina
                 </p>
               </div>
+              */}
             </div>
             <DialogFooter>
               <Button

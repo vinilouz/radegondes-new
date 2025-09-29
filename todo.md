@@ -9,3 +9,6 @@ init run web
 2. `npm i`
 3. `npm run build`
 4. `npm run start`
+
+TODO:
+- [x] Edição de tempo de cronometro
