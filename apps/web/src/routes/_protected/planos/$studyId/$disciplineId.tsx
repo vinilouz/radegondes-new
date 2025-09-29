@@ -469,7 +469,7 @@ function DisciplinePage() {
       </Card>
 
       <Dialog open={!!studyTopic} onOpenChange={() => setStudyTopic(null)}>
-        <DialogContent className="max-w-3xl w-[95%] sm:w-full max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl w-[95%] sm:w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>{studyTopic?.name}</DialogTitle>
             <DialogDescription>
@@ -478,7 +478,7 @@ function DisciplinePage() {
           </DialogHeader>
 
           {studyTopic && (
-            <div className="space-y-6">
+            <div className="space-y-6 overflow-x-hidden">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Questões Corretas</Label>
@@ -579,13 +579,13 @@ function DisciplinePage() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Histórico de Sessões</Label>
+                <Label className="text-sm font-medium mb-2 block">Histórico de Sessões</Label>
                 {topicSessionsQuery.isLoading ? (
                   <div className="text-center py-4">
                     <p className="text-sm text-muted-foreground">Carregando histórico...</p>
                   </div>
                 ) : topicSessionsQuery.data && topicSessionsQuery.data.length > 0 ? (
-                  <div className="space-y-2 max-h-32 overflow-y-auto mt-2">
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full">
                     {topicSessionsQuery.data.map(session => (
                       <div key={session.id} className="flex justify-between items-center p-2 bg-muted rounded-lg group">
                         <span className="text-sm">{new Date(session.startTime).toLocaleString('pt-BR')}</span>
