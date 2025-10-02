@@ -179,7 +179,7 @@ function DisciplinePage() {
       createdAt: new Date(topic.createdAt),
       updatedAt: new Date(topic.updatedAt),
     })));
-  }, [topics]);
+  }, [topics.map(t => t.id).join(',')]);
 
   const [newTopicName, setNewTopicName] = useState("");
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);

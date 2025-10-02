@@ -152,14 +152,13 @@ export const appRouter = router({
           id: discipline.id,
           name: discipline.name,
           studyId: discipline.studyId,
-          estimatedHours: discipline.estimatedHours,
           createdAt: discipline.createdAt,
           topicCount: count(topic.id),
         })
         .from(discipline)
         .leftJoin(topic, eq(topic.disciplineId, discipline.id))
         .where(eq(discipline.studyId, input.studyId))
-        .groupBy(discipline.id, discipline.name, discipline.studyId, discipline.estimatedHours, discipline.createdAt)
+        .groupBy(discipline.id, discipline.name, discipline.studyId, discipline.createdAt)
         .orderBy(desc(discipline.createdAt));
 
       return disciplines;
@@ -169,7 +168,6 @@ export const appRouter = router({
     .input(z.object({
       studyId: z.string(),
       name: z.string().min(1),
-      estimatedHours: z.number().min(1).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
@@ -193,12 +191,11 @@ export const appRouter = router({
           id: disciplineId,
           name: input.name,
           studyId: input.studyId,
-          estimatedHours: input.estimatedHours || 1,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
 
-      return { id: disciplineId, name: input.name, studyId: input.studyId, estimatedHours: input.estimatedHours || 1, createdAt: new Date(), updatedAt: new Date() };
+      return { id: disciplineId, name: input.name, studyId: input.studyId, createdAt: new Date(), updatedAt: new Date() };
     }),
 
   getStudy: protectedProcedure
@@ -252,7 +249,6 @@ export const appRouter = router({
     .input(z.object({
       disciplineId: z.string(),
       name: z.string().min(1).optional(),
-      estimatedHours: z.number().min(1).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
@@ -274,7 +270,6 @@ export const appRouter = router({
 
       const updateData: any = {};
       if (input.name) updateData.name = input.name;
-      if (input.estimatedHours !== undefined) updateData.estimatedHours = input.estimatedHours;
       updateData.updatedAt = new Date();
 
       const updated = await db

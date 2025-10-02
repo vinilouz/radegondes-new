@@ -31,10 +31,8 @@ function StudyDetailsPage() {
   const navigate = useNavigate();
   const [isCreateDisciplineDialogOpen, setIsCreateDisciplineDialogOpen] = useState(false);
   const [newDisciplineName, setNewDisciplineName] = useState("");
-  const [newDisciplineEstimatedHours, setNewDisciplineEstimatedHours] = useState(1);
   const [editingDiscipline, setEditingDiscipline] = useState<string | null>(null);
   const [editDisciplineName, setEditDisciplineName] = useState("");
-  const [editDisciplineEstimatedHours, setEditDisciplineEstimatedHours] = useState(1);
   const [newTopicNames, setNewTopicNames] = useState<Record<string, string>>({});
   const [editingTopics, setEditingTopics] = useState<Record<string, string>>({});
 
@@ -61,7 +59,6 @@ function StudyDetailsPage() {
       queryClient.invalidateQueries({ queryKey: trpc.getStudy.queryKey() });
       setIsCreateDisciplineDialogOpen(false);
       setNewDisciplineName("");
-      setNewDisciplineEstimatedHours(1);
     },
   });
 
@@ -72,7 +69,6 @@ function StudyDetailsPage() {
       queryClient.invalidateQueries({ queryKey: trpc.getTopics.queryKey() });
       setEditingDiscipline(null);
       setEditDisciplineName("");
-      setEditDisciplineEstimatedHours(1);
     },
   });
 
@@ -119,10 +115,9 @@ function StudyDetailsPage() {
     });
   };
 
-  const handleEditDiscipline = (discipline: { id: string; name: string; estimatedHours?: number }) => {
+  const handleEditDiscipline = (discipline: { id: string; name: string }) => {
     setEditingDiscipline(discipline.id);
     setEditDisciplineName(discipline.name);
-    setEditDisciplineEstimatedHours(discipline.estimatedHours || 1);
   };
 
   const handleUpdateDiscipline = () => {
@@ -131,7 +126,6 @@ function StudyDetailsPage() {
     updateDisciplineMutation.mutate({
       disciplineId: editingDiscipline,
       name: editDisciplineName,
-      estimatedHours: editDisciplineEstimatedHours,
     });
   };
 
@@ -226,9 +220,9 @@ function StudyDetailsPage() {
   const totalStudyTime = allTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
   const completedTopics = topics.filter(topic => topic.status === "completed").length;
 
-  const dailyStudyHours = 3; // Valor padrão enquanto os tipos não são atualizados
-  const totalEstimatedHours = disciplines.reduce((sum, discipline) => sum + 1, 0); // Usar 1 enquanto estimatedHours não está disponível
-  const studiedHours = totalStudyTime / 1000 / 60 / 60; // Converter ms para horas
+  const dailyStudyHours = 3;
+  const totalEstimatedHours = topics.length;
+  const studiedHours = totalStudyTime / 1000 / 60 / 60;
   const remainingDaysText = formatRemainingDays(totalEstimatedHours, studiedHours, dailyStudyHours);
 
   const overallProgress = disciplines.length > 0
@@ -354,22 +348,6 @@ function StudyDetailsPage() {
                   className="mt-1"
                 />
               </div>
-              {/* 
-              <div>
-                <Label htmlFor="discipline-hours">Horas Estimadas</Label>
-                <Input
-                  id="discipline-hours"
-                  type="number"
-                  min="1"
-                  value={newDisciplineEstimatedHours}
-                  onChange={(e) => setNewDisciplineEstimatedHours(parseInt(e.target.value) || 1)}
-                  className="mt-1"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Tempo estimado para concluir esta disciplina
-                </p>
-              </div>
-              */}
             </div>
             <DialogFooter>
               <Button
@@ -546,20 +524,6 @@ function StudyDetailsPage() {
                 onChange={(e) => setEditDisciplineName(e.target.value)}
                 className="mt-1"
               />
-            </div>
-            <div>
-              <Label htmlFor="edit-discipline-hours">Horas Estimadas</Label>
-              <Input
-                id="edit-discipline-hours"
-                type="number"
-                min="1"
-                value={editDisciplineEstimatedHours}
-                onChange={(e) => setEditDisciplineEstimatedHours(parseInt(e.target.value) || 1)}
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Tempo estimado para concluir esta disciplina
-              </p>
             </div>
           </div>
           <DialogFooter>
