@@ -311,7 +311,7 @@ function StudyDetailsPage() {
             <div className="flex flex-col justify-center items-center md:items-start space-y-2 md:border-l md:pl-6">
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
-                <span className="text-sm font-semibold text-muted-foreground">Conclusão Estimada</span>
+                <span className="text-sm font-semibold text-muted-foreground">Prazo para terminar o plano</span>
               </div>
               <span className="text-2xl font-bold text-foreground">{remainingDaysText}</span>
             </div>

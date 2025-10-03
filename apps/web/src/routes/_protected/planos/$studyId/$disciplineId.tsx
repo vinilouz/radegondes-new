@@ -239,7 +239,12 @@ function DisciplinePage() {
 
   const updateTopicProgressMutation = useMutation({
     ...trpc.updateTopicProgress.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      setTopicsState(prev => prev.map(t =>
+        t.id === variables.topicId
+          ? { ...t, status: variables.status, correct: variables.correct, wrong: variables.wrong, notes: variables.notes ?? t.notes }
+          : t
+      ));
       queryClient.invalidateQueries({ queryKey: trpc.getTopicsByDiscipline.queryKey({ disciplineId: discipline.id }) });
       setStudyTopic(null);
     },
