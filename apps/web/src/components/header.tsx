@@ -1,13 +1,12 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { ModeToggle } from "./mode-toggle";
-import { authClient } from "@/lib/auth-client";
 import UserMenu from "./user-menu";
 import { BookOpen, Home, BarChart3, Menu } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 
 export default function Header() {
-	const { data: session } = authClient.useSession();
+	const session = useRouterState({ select: (s) => s.matches.find(m => m.context?.session)?.context?.session });
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 	const publicLinks = [

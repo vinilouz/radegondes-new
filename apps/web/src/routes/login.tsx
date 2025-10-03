@@ -4,9 +4,13 @@ import { createFileRoute, useNavigate, useSearch, redirect } from "@tanstack/rea
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
+const LOGOUT_IN_PROGRESS_KEY = "__logout_in_progress";
+
 export const Route = createFileRoute("/login")({
 	component: RouteComponent,
 	beforeLoad: async ({ location }) => {
+		sessionStorage.removeItem(LOGOUT_IN_PROGRESS_KEY);
+
 		const { data: session } = await authClient.getSession();
 
 		if (session && session.user) {

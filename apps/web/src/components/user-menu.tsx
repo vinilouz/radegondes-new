@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { authClient } from "@/lib/auth-client";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { Settings } from "lucide-react";
@@ -19,13 +19,9 @@ import { Link } from "@tanstack/react-router";
 
 export default function UserMenu() {
 	const navigate = useNavigate();
-	const { data: session, isPending } = authClient.useSession();
+	const session = useRouterState({ select: (s) => s.matches.find(m => m.context?.session)?.context?.session });
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [dailyStudyHours, setDailyStudyHours] = useState(3);
-
-	if (isPending) {
-		return <Skeleton className="h-9 w-24" />;
-	}
 
 	if (!session) {
 		return (

@@ -247,7 +247,7 @@ function StudiesPage() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Criar Estudo
+              Criar Plano de Estudos
             </Button>
           </DialogTrigger>
           <DialogContent>
