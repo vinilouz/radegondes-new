@@ -718,7 +718,7 @@ export const appRouter = router({
 
   getStudyStatistics: protectedProcedure
     .input(z.object({
-      days: z.number().min(7).max(365).default(30),
+      days: z.number().min(1).max(10000).default(30),
     }))
     .query(async ({ ctx, input }) => {
       console.log('=== DEBUG getStudyStatistics ===');

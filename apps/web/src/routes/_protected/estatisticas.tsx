@@ -13,11 +13,11 @@ export const Route = createFileRoute('/_protected/estatisticas')({
 });
 
 function EstatisticasPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState(30);
+  const [selectedPeriod, setSelectedPeriod] = useState<number | 'all'>(30);
 
   // Buscar estatísticas do backend
   const statisticsQuery = useQuery({
-    ...trpc.getStudyStatistics.queryOptions({ days: selectedPeriod }),
+    ...trpc.getStudyStatistics.queryOptions({ days: selectedPeriod === 'all' ? 9999 : selectedPeriod }),
   });
 
   // Buscar todos os estudos para estatísticas gerais
@@ -33,7 +33,7 @@ function EstatisticasPage() {
       day: '2-digit',
       month: '2-digit'
     }),
-    duration: Math.round(Math.min(item.duration / 1000 / 60, 1440)), // max 24 horas por dia
+    duration: Math.round(Math.min(item.duration / 1000 / 60 / 60, 24)), // converter para horas, max 24h por dia
     desempenho: item.performance || 0, // Usar desempenho real do backend
     questoes: item.questions || 0, // Número total de questões
     acertos: item.correct || 0, // Questões corretas
@@ -42,7 +42,6 @@ function EstatisticasPage() {
 
   // Calcular teto máximo razoável para o gráfico
   const maxDuration = Math.max(...chartData.map(d => d.duration), 0);
-  const reasonableMax = maxDuration > 0 ? Math.max(maxDuration + 10, 30) : 60;
 
   // Dados para gráfico de pizza por disciplina
   const pieData = stats?.disciplineStats.slice(0, 5).map(discipline => ({
@@ -73,14 +72,14 @@ function EstatisticasPage() {
 
         {/* Filtros de Período */}
         <div className="flex gap-2">
-          {[7, 30, 90].map(days => (
+          {[7, 30, 90, 'all'].map(days => (
             <Button
               key={days}
               variant={selectedPeriod === days ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedPeriod(days)}
             >
-              {days}d
+              {days === 'all' ? 'Todos' : `${days}d`}
             </Button>
           ))}
         </div>
@@ -96,14 +95,14 @@ function EstatisticasPage() {
           <CardContent>
             <div className="text-2xl font-bold">{formatTime(stats?.totalTime || 0)}</div>
             <p className="text-xs text-muted-foreground">
-              nos últimos {selectedPeriod} dias
+              {selectedPeriod === 'all' ? 'desde o início' : `nos últimos ${selectedPeriod} dias`}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sessões</CardTitle>
+            <CardTitle className="text-sm font-medium">Sessões de estudos</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -116,7 +115,7 @@ function EstatisticasPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Streak</CardTitle>
+            <CardTitle className="text-sm font-medium">Ritmo de Estudos</CardTitle>
             <Flame className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -144,7 +143,7 @@ function EstatisticasPage() {
       </div>
 
       {/* Gráficos de Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 my-8">
+      <div className="my-8">
         {/* Produtividade na Semana */}
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -168,7 +167,7 @@ function EstatisticasPage() {
                     />
                     <YAxis
                       tick={{ fontSize: 10 }}
-                      domain={[0, 24]}
+                      domain={[0, Math.max(Math.ceil((maxDuration + 2) / 5) * 5, 20)]}
                       label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip
@@ -207,69 +206,18 @@ function EstatisticasPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Distribuição por Disciplina */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribuição por Disciplina</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pieData.length > 0 ? (
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}min`}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgb(255, 255, 255)',
-                        borderColor: 'rgb(229, 231, 235)',
-                        color: 'rgb(55, 65, 81)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                        opacity: 1
-                      }}
-                      wrapperStyle={{
-                        opacity: 1
-                      }}
-                      formatter={(value) => [`${value} min`, 'Tempo de Estudo']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <TrendingUp className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Sem dados para exibir</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
-
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Ranking de Disciplinas */}
         <Card>
           <CardHeader>
-            <CardTitle>Disciplinas Mais Estudadas</CardTitle>
+            <CardTitle>Disciplinas</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-0">
             {stats?.disciplineStats && stats.disciplineStats.length > 0 ? (
-              <div className="space-y-4">
-                {stats.disciplineStats.slice(0, 5).map((discipline, index) => (
+              <div className="space-y-4 px-6 max-h-80 overflow-y-auto pr-2">
+                {stats.disciplineStats.map((discipline, index) => (
                   <div key={discipline.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -310,7 +258,7 @@ function EstatisticasPage() {
                       <div>
                         <p className="text-sm font-medium">Tempo Médio Diário</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatTimeRelative(stats.totalTime / selectedPeriod)} em média
+                          {formatTimeRelative(stats.totalTime / (selectedPeriod === 'all' ? 9999 : selectedPeriod))} em média
                         </p>
                       </div>
                     </div>
@@ -348,7 +296,7 @@ function EstatisticasPage() {
                       <div>
                         <p className="text-sm font-medium">Frequência de Estudo</p>
                         <p className="text-xs text-muted-foreground">
-                          {(stats.totalSessions / selectedPeriod).toFixed(1)} sessões por dia em média
+                          {(stats.totalSessions / (selectedPeriod === 'all' ? 9999 : selectedPeriod)).toFixed(1)} sessões por dia em média
                         </p>
                       </div>
                     </div>
@@ -404,7 +352,7 @@ function EstatisticasPage() {
                     tick={{ fontSize: 10 }}
                     yAxisId="right"
                     orientation="right"
-                    label={{ value: 'Taxa de Acertos (%)', angle: 90, position: 'outsideRight'}}
+                    label={{ value: 'Taxa de Acertos (%)', angle: 90, position: 'outsideRight' }}
                     domain={[0, 100]}
                   />
                   <Tooltip

@@ -3,9 +3,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Outlet } from "@tanstack/react-router";
 
 const LOGOUT_IN_PROGRESS_KEY = "__logout_in_progress";
-const SESSION_CHECK_COOLDOWN_MS = 1000;
-let lastSessionCheck = 0;
-let cachedSessionCheck: { valid: boolean; timestamp: number } | null = null;
+const SESSION_CHECK_COOLDOWN_MS = 2000;
+let cachedSession: { session: any; timestamp: number } | null = null;
 
 export const Route = createFileRoute("/_protected")({
   beforeLoad: async ({ context, location }) => {
@@ -18,25 +17,14 @@ export const Route = createFileRoute("/_protected")({
 
     const now = Date.now();
 
-    if (cachedSessionCheck && (now - cachedSessionCheck.timestamp) < SESSION_CHECK_COOLDOWN_MS) {
-      if (!cachedSessionCheck.valid) {
-        throw redirect({
-          to: "/login",
-          search: { redirect: location.href }
-        });
-      }
-      return context;
+    if (cachedSession && (now - cachedSession.timestamp) < SESSION_CHECK_COOLDOWN_MS) {
+      return { ...context, session: cachedSession.session };
     }
 
-    if ((now - lastSessionCheck) < SESSION_CHECK_COOLDOWN_MS) {
-      return context;
-    }
-
-    lastSessionCheck = now;
     const { data: session, error } = await authClient.getSession();
 
     if (!session || !session.user || error) {
-      cachedSessionCheck = { valid: false, timestamp: now };
+      cachedSession = null;
       sessionStorage.setItem(LOGOUT_IN_PROGRESS_KEY, "true");
 
       document.cookie.split(";").forEach((cookie) => {
@@ -52,7 +40,7 @@ export const Route = createFileRoute("/_protected")({
       });
     }
 
-    cachedSessionCheck = { valid: true, timestamp: now };
+    cachedSession = { session, timestamp: now };
     sessionStorage.removeItem(LOGOUT_IN_PROGRESS_KEY);
     return { ...context, session };
   },
