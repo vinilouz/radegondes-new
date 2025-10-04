@@ -28,17 +28,38 @@ function EstatisticasPage() {
   const stats = statisticsQuery.data;
 
   // Formatear dados para o gráfico com bounds checking
-  const chartData = stats?.dailyData.map(item => ({
-    date: new Date(item.date).toLocaleDateString('pt-BR', {
+  const chartData = (() => {
+    const data = stats?.dailyData.map(item => ({
+      date: new Date(item.date).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit'
+      }),
+      duration: Math.round(Math.min(item.duration / 1000 / 60 / 60, 24)), // converter para horas, max 24h por dia
+      desempenho: item.performance || 0, // Usar desempenho real do backend
+      questoes: item.questions || 0, // Número total de questões
+      acertos: item.correct || 0, // Questões corretas
+      erros: item.wrong || 0 // Questões erradas
+    })) ?? [];
+
+    // Adicionar hoje se não existir
+    const today = new Date().toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit'
-    }),
-    duration: Math.round(Math.min(item.duration / 1000 / 60 / 60, 24)), // converter para horas, max 24h por dia
-    desempenho: item.performance || 0, // Usar desempenho real do backend
-    questoes: item.questions || 0, // Número total de questões
-    acertos: item.correct || 0, // Questões corretas
-    erros: item.wrong || 0 // Questões erradas
-  })).sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime()) ?? [];
+    });
+
+    if (data.length > 0 && !data.some(d => d.date === today)) {
+      data.push({
+        date: today,
+        duration: 0,
+        desempenho: 0,
+        questoes: 0,
+        acertos: 0,
+        erros: 0
+      });
+    }
+
+    return data.sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime());
+  })();
 
   // Calcular teto máximo razoável para o gráfico
   const maxDuration = Math.max(...chartData.map(d => d.duration), 0);
@@ -183,15 +204,7 @@ function EstatisticasPage() {
                       wrapperStyle={{
                         opacity: 1
                       }}
-                      formatter={(value) => {
-                        const minutes = Number(value);
-                        if (minutes >= 60) {
-                          const hours = Math.floor(minutes / 60);
-                          const remainingMinutes = minutes % 60;
-                          return [`${hours}h${remainingMinutes > 0 ? remainingMinutes + 'min' : ''}`, 'Tempo de Estudo'];
-                        }
-                        return [`${minutes} min`, 'Tempo de Estudo'];
-                      }}
+                      formatter={(value) => [`${Number(value)}h`, 'Tempo de Estudo']}
                       labelFormatter={(label) => `Data: ${label}`}
                     />
                     <Bar dataKey="duration" fill="#e66912" name="horas" />
@@ -319,9 +332,9 @@ function EstatisticasPage() {
       <div className="grid grid-cols-1 gap-6 mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>Desempenho por Disciplina</CardTitle>
+            <CardTitle>Taxa de Acertos por Disciplina</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Tempo investido e taxa de acertos por disciplina
+              Performance em questões por disciplina
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -329,12 +342,11 @@ function EstatisticasPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats?.disciplineStats.map(discipline => ({
                   name: discipline.name,
-                  tempo: Math.round(discipline.time / 1000 / 60),
                   acertos: discipline.correct || 0,
                   erros: discipline.wrong || 0,
                   taxaAcertos: discipline.correct && discipline.wrong ?
                     Math.round((discipline.correct / (discipline.correct + discipline.wrong)) * 100) : 0
-                })) || []} margin={{ top: 20, right: 10, left: 10, bottom: 10 }}>
+                })) || []} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
@@ -345,14 +357,7 @@ function EstatisticasPage() {
                   />
                   <YAxis
                     tick={{ fontSize: 10 }}
-                    yAxisId="left"
-                    label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10 }}
-                    yAxisId="right"
-                    orientation="right"
-                    label={{ value: 'Taxa de Acertos (%)', angle: 90, position: 'outsideRight' }}
+                    label={{ value: 'Taxa de Acertos (%)', angle: -90, position: 'insideLeft' }}
                     domain={[0, 100]}
                   />
                   <Tooltip
@@ -368,31 +373,13 @@ function EstatisticasPage() {
                     wrapperStyle={{
                       opacity: 1
                     }}
-                    formatter={(value, name) => {
-                      if (name === 'Tempo de Estudo') {
-                        return [`${value} min`, name];
-                      }
-                      if (name === 'Taxa de Acertos') {
-                        return [`${value}%`, name];
-                      }
-                      return [value, name];
-                    }}
+                    formatter={(value, name) => [`${value}%`, name]}
                     labelFormatter={(label) => `Disciplina: ${label}`}
                   />
                   <Bar
-                    yAxisId="left"
-                    dataKey="tempo"
-                    fill="#e66912"
-                    name="Tempo de Estudo"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
                     dataKey="taxaAcertos"
-                    stroke="#22c55e"
-                    strokeWidth={2}
+                    fill="#22c55e"
                     name="Taxa de Acertos"
-                    dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
                   />
                 </BarChart>
               </ResponsiveContainer>

@@ -296,7 +296,7 @@ function StudyDetailsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-muted-foreground">Progresso dos Tópicos</span>
+                <span className="text-sm font-semibold text-muted-foreground">Progresso do Plano de Estudos</span>
                 <span className="text-2xl font-bold text-primary">{Math.round(overallProgress)}%</span>
               </div>
               <div className="w-full bg-muted rounded-full h-3">
@@ -344,6 +344,11 @@ function StudyDetailsPage() {
                   id="discipline-name"
                   value={newDisciplineName}
                   onChange={(e) => setNewDisciplineName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newDisciplineName.trim() && !createDisciplineMutation.isPending) {
+                      handleCreateDiscipline();
+                    }
+                  }}
                   placeholder="Digite o nome da disciplina"
                   className="mt-1"
                 />

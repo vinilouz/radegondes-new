@@ -264,6 +264,11 @@ function StudiesPage() {
                   id="study-name"
                   value={newStudyName}
                   onChange={(e) => setNewStudyName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newStudyName.trim() && !createStudyMutation.isPending) {
+                      handleCreateStudy();
+                    }
+                  }}
                   placeholder="Digite o nome do estudo"
                   className="mt-1"
                 />
@@ -274,6 +279,11 @@ function StudiesPage() {
                   id="study-description"
                   value={newStudyDescription}
                   onChange={(e) => setNewStudyDescription(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newStudyName.trim() && !createStudyMutation.isPending) {
+                      handleCreateStudy();
+                    }
+                  }}
                   placeholder="Digite a descrição do estudo"
                   className="mt-1"
                   rows={3}

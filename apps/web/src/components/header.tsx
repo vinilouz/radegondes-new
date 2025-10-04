@@ -14,7 +14,7 @@ export default function Header() {
 	] as const;
 
 	const protectedLinks = [
-		{ to: "/planos", label: "Meus Planos", icon: BookOpen },
+		{ to: "/planos", label: "Meu Plano", icon: BookOpen },
 		{ to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
 	] as const;
 
