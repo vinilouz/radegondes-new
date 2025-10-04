@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer, Clock } from "lucide-react";
+import { Plus, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { Breadcrumb } from '@/components/Breadcrumb';
 import {
   DropdownMenu,
@@ -20,21 +20,160 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export const Route = createFileRoute("/_protected/planos/$studyId/")({
   component: StudyDetailsPage,
 });
 
+interface SortableDisciplineCardProps {
+  discipline: {
+    id: string;
+    name: string;
+    studyId: string;
+  };
+  disciplineTopics: any[];
+  disciplineTime: number;
+  disciplineProgress: number;
+  studyId: string;
+  onNavigate: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function SortableDisciplineCard({
+  discipline,
+  disciplineTopics,
+  disciplineTime,
+  disciplineProgress,
+  studyId,
+  onNavigate,
+  onEdit,
+  onDelete,
+}: SortableDisciplineCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: discipline.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card
+        className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer overflow-hidden flex flex-col no-underline"
+        onClick={onNavigate}
+      >
+        <div className="absolute top-1 left-1 z-10">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors p-1 flex flex-col bg-background/80 rounded"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ChevronUp className="h-3 w-3" />
+            <ChevronDown className="h-3 w-3" />
+          </div>
+        </div>
+        <div className="absolute top-2 right-2 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => { e.stopPropagation(); }}>
+              <DropdownMenuItem onClick={onEdit}>
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <CardHeader className="pb-3 pl-7">
+          <CardTitle className="text-lg md:text-xl line-clamp-2">{discipline.name}</CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-3 flex-1 flex flex-col justify-end">
+          <div className="flex items-center gap-2 text-sm">
+            <BookCopy className="h-4 w-4 text-muted-foreground" />
+            <span className="font-semibold">{disciplineTopics.length}</span>
+            <span className="text-muted-foreground">tópicos</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <Timer className="h-4 w-4 text-muted-foreground" />
+            <span className="font-semibold">{formatTime(disciplineTime)}</span>
+            <span className="text-muted-foreground">estudados</span>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Progresso</span>
+              <span className="font-semibold text-primary">{Math.round(disciplineProgress)}%</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{ width: `${disciplineProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function StudyDetailsPage() {
   const { studyId } = useParams({ from: "/_protected/planos/$studyId/" });
-  const { data: session, isPending: authPending } = authClient.useSession();
+  const { isPending: authPending } = authClient.useSession();
   const navigate = useNavigate();
   const [isCreateDisciplineDialogOpen, setIsCreateDisciplineDialogOpen] = useState(false);
   const [newDisciplineName, setNewDisciplineName] = useState("");
   const [editingDiscipline, setEditingDiscipline] = useState<string | null>(null);
   const [editDisciplineName, setEditDisciplineName] = useState("");
-  const [newTopicNames, setNewTopicNames] = useState<Record<string, string>>({});
-  const [editingTopics, setEditingTopics] = useState<Record<string, string>>({});
+  const [disciplinesState, setDisciplinesState] = useState<Array<{
+    id: string;
+    name: string;
+    studyId: string;
+    order: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }>>([]);
 
   const queryClient = useQueryClient();
 
@@ -81,28 +220,10 @@ function StudyDetailsPage() {
     },
   });
 
-  const createTopicMutation = useMutation({
-    ...trpc.createTopic.mutationOptions(),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: trpc.getTopics.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.getDisciplines.queryKey() });
-      setNewTopicNames(prev => ({ ...prev, [variables.disciplineId]: "" }));
-    },
-  });
-
-  const updateTopicMutation = useMutation({
-    ...trpc.updateTopic.mutationOptions(),
+  const reorderDisciplinesMutation = useMutation({
+    ...trpc.reorderDisciplines.mutationOptions(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.getTopics.queryKey() });
-      setEditingTopics({});
-    },
-  });
-
-  const deleteTopicMutation = useMutation({
-    ...trpc.deleteTopic.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.getTopics.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.getDisciplines.queryKey() });
+      queryClient.invalidateQueries({ queryKey: trpc.getDisciplines.queryKey({ studyId }) });
     },
   });
 
@@ -135,34 +256,47 @@ function StudyDetailsPage() {
     }
   };
 
-  const handleCreateTopic = (disciplineId: string) => {
-    const topicName = newTopicNames[disciplineId] || "";
-    if (!topicName.trim()) return;
 
-    createTopicMutation.mutate({
-      disciplineId,
-      name: topicName,
-    });
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  const handleUpdateTopic = (topicId: string, newName: string) => {
-    if (!newName.trim()) return;
+  useEffect(() => {
+    const disciplines = disciplinesQuery.data || [];
+    setDisciplinesState(disciplines.map(d => ({
+      id: d.id,
+      name: d.name,
+      studyId: d.studyId,
+      order: 0,
+      createdAt: new Date(d.createdAt),
+      updatedAt: new Date(),
+    })));
+  }, [disciplinesQuery.data?.map(d => d.id).join(',')]);
 
-    updateTopicMutation.mutate({
-      topicId,
-      name: newName,
-    });
-  };
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
 
-  const handleDeleteTopic = (topicId: string) => {
-    if (confirm("Tem certeza que deseja excluir este tópico?")) {
-      deleteTopicMutation.mutate({ topicId });
+    if (active.id !== over?.id) {
+      setDisciplinesState((items) => {
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over?.id);
+
+        const newItems = arrayMove(items, oldIndex, newIndex);
+
+        const disciplineOrders = newItems.map((discipline, index) => ({
+          disciplineId: discipline.id,
+          order: index,
+        }));
+
+        reorderDisciplinesMutation.mutate({ disciplineOrders });
+
+        return newItems;
+      });
     }
-  };
-
-  const startEditingTopic = (topicId: string, currentName: string) => {
-    setEditingTopics(prev => ({ ...prev, [topicId]: currentName }));
-  };
+  }
 
   const formatCreatedAt = (date: Date | string) => {
     return new Date(date).toLocaleDateString("pt-BR", {
@@ -405,114 +539,37 @@ function StudyDetailsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {disciplines.map((discipline) => {
-            const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);
-            const disciplineTopicIds = disciplineTopics.map(topic => topic.id);
-            const disciplineTime = disciplineTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
-            const completedDisciplineTopics = disciplineTopics.filter(topic => topic.status === "completed").length;
-            const disciplineProgress = disciplineTopics.length > 0 ? (completedDisciplineTopics / disciplineTopics.length) * 100 : 0;
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={disciplinesState.map(d => d.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {disciplinesState.map((discipline) => {
+                const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);
+                const disciplineTopicIds = disciplineTopics.map(topic => topic.id);
+                const disciplineTime = disciplineTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
+                const completedDisciplineTopics = disciplineTopics.filter(topic => topic.status === "completed").length;
+                const disciplineProgress = disciplineTopics.length > 0 ? (completedDisciplineTopics / disciplineTopics.length) * 100 : 0;
 
-            return (
-              <Card
-                key={discipline.id}
-                className="group relative border hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer overflow-hidden flex flex-col no-underline"
-                onClick={() => navigate({ to: "/planos/$studyId/$disciplineId", params: { studyId, disciplineId: discipline.id } })}
-              >
-                <div className="absolute top-2 right-2 z-10">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => { e.stopPropagation(); }}>
-                      <DropdownMenuItem onClick={() => handleEditDiscipline(discipline)}>
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteDiscipline(discipline.id)}
-                        className="text-destructive"
-                      >
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <CardHeader className="pr-10">
-                  <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">
-                    {discipline.name}
-                  </CardTitle>
-                </CardHeader>
-
-                <CardContent className="flex-grow flex flex-col justify-between space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2 text-muted-foreground">
-                        <BookCopy className="h-4 w-4" />
-                        Tópicos
-                      </span>
-                      <span className="font-semibold">{disciplineTopics.length}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2 text-muted-foreground">
-                        <Timer className="h-4 w-4" />
-                        Tempo de Estudo
-                      </span>
-                      <span className="font-semibold">{formatTime(disciplineTime)}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-semibold text-muted-foreground">Progresso</span>
-                      <span className="text-xs font-bold text-primary">{Math.round(disciplineProgress)}%</span>
-                    </div>
-                    <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${disciplineProgress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </CardContent>
-
-                <div className="p-4 pt-2 mt-auto">
-                  <div className="flex space-x-2">
-                    <Input
-                      placeholder="Adicionar tópico..."
-                      value={newTopicNames[discipline.id] || ""}
-                      onChange={(e) => setNewTopicNames(prev => ({ ...prev, [discipline.id]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleCreateTopic(discipline.id);
-                      }}
-                      onClick={(e) => { e.stopPropagation(); }}
-                      className="flex-1 h-9"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCreateTopic(discipline.id);
-                      }}
-                      disabled={!(newTopicNames[discipline.id] || "").trim() || createTopicMutation.isPending}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                return (
+                  <SortableDisciplineCard
+                    key={discipline.id}
+                    discipline={discipline}
+                    disciplineTopics={disciplineTopics}
+                    disciplineTime={disciplineTime}
+                    disciplineProgress={disciplineProgress}
+                    studyId={studyId}
+                    onNavigate={() => navigate({ to: "/planos/$studyId/$disciplineId", params: { studyId, disciplineId: discipline.id } })}
+                    onEdit={() => handleEditDiscipline(discipline)}
+                    onDelete={() => handleDeleteDiscipline(discipline.id)}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <Dialog open={!!editingDiscipline} onOpenChange={() => setEditingDiscipline(null)}>

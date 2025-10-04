@@ -18,6 +18,7 @@ export const discipline = pgTable("discipline", {
 	studyId: text("study_id")
 		.notNull()
 		.references(() => study.id, { onDelete: "cascade" }),
+	order: integer("order").notNull().default(0),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

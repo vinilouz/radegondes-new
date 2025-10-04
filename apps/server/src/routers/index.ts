@@ -152,14 +152,15 @@ export const appRouter = router({
           id: discipline.id,
           name: discipline.name,
           studyId: discipline.studyId,
+          order: discipline.order,
           createdAt: discipline.createdAt,
           topicCount: count(topic.id),
         })
         .from(discipline)
         .leftJoin(topic, eq(topic.disciplineId, discipline.id))
         .where(eq(discipline.studyId, input.studyId))
-        .groupBy(discipline.id, discipline.name, discipline.studyId, discipline.createdAt)
-        .orderBy(desc(discipline.createdAt));
+        .groupBy(discipline.id, discipline.name, discipline.studyId, discipline.order, discipline.createdAt)
+        .orderBy(asc(discipline.order));
 
       return disciplines;
     }),
@@ -306,6 +307,41 @@ export const appRouter = router({
       await db
         .delete(discipline)
         .where(eq(discipline.id, input.disciplineId));
+
+      return { success: true };
+    }),
+
+  reorderDisciplines: protectedProcedure
+    .input(z.object({
+      disciplineOrders: z.array(z.object({
+        disciplineId: z.string(),
+        order: z.number(),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      for (const { disciplineId, order } of input.disciplineOrders) {
+        const disciplineCheck = await db
+          .select({
+            disciplineId: discipline.id,
+            studyId: discipline.studyId,
+            userId: study.userId
+          })
+          .from(discipline)
+          .leftJoin(study, eq(discipline.studyId, study.id))
+          .where(eq(discipline.id, disciplineId))
+          .limit(1);
+
+        if (!disciplineCheck.length || disciplineCheck[0].userId !== userId) {
+          throw new Error("Discipline not found or access denied");
+        }
+
+        await db
+          .update(discipline)
+          .set({ order, updatedAt: new Date() })
+          .where(eq(discipline.id, disciplineId));
+      }
 
       return { success: true };
     }),
