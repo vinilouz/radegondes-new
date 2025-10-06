@@ -760,6 +760,23 @@ export const appRouter = router({
       console.log('=== DEBUG getStudyStatistics ===');
       console.log('UserId:', ctx.session.user.id);
       console.log('Days:', input.days);
+
+      const SAO_PAULO_TIMEZONE = 'America/Sao_Paulo';
+
+      const toSaoPauloDateString = (date: Date): string => {
+        return new Date(date.toLocaleString('en-US', { timeZone: SAO_PAULO_TIMEZONE }))
+          .toISOString().split('T')[0];
+      };
+
+      const getSaoPauloHour = (date: Date): number => {
+        return parseInt(new Date(date.toLocaleString('en-US', { timeZone: SAO_PAULO_TIMEZONE }))
+          .toTimeString().split(':')[0]);
+      };
+
+      const getSaoPauloDayOfWeek = (date: Date): number => {
+        return new Date(date.toLocaleString('en-US', { timeZone: SAO_PAULO_TIMEZONE })).getDay();
+      };
+
       const userId = ctx.session.user.id;
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - input.days);
@@ -812,7 +829,7 @@ export const appRouter = router({
 
       // Agrupar sessões por data
       sessions.forEach(session => {
-        const date = session.date.toISOString().split('T')[0];
+        const date = toSaoPauloDateString(session.date);
         if (!dailyData[date]) {
           dailyData[date] = { duration: 0, correct: 0, wrong: 0 };
         }
@@ -821,7 +838,7 @@ export const appRouter = router({
 
       // Agrupar desempenho por data
       topicPerformance.forEach(perf => {
-        const date = perf.date.toISOString().split('T')[0];
+        const date = toSaoPauloDateString(perf.date);
         if (!dailyData[date]) {
           dailyData[date] = { duration: 0, correct: 0, wrong: 0 };
         }
@@ -835,7 +852,7 @@ export const appRouter = router({
       for (let i = 0; i < input.days; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = toSaoPauloDateString(date);
 
         if (dailyData[dateStr] && dailyData[dateStr].duration > 0) {
           currentStreak++;
@@ -850,7 +867,7 @@ export const appRouter = router({
       // Análise de horários mais produtivos
       const hourlyStats: Record<number, number> = {};
       sessions.forEach(session => {
-        const hour = session.date.getHours();
+        const hour = getSaoPauloHour(session.date);
         hourlyStats[hour] = (hourlyStats[hour] || 0) + session.duration;
       });
 
@@ -883,9 +900,8 @@ export const appRouter = router({
       const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
       sessions.forEach(session => {
-        const date = new Date(session.date);
-        const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Segunda, etc.
-        const hour = date.getHours();
+        const dayOfWeek = getSaoPauloDayOfWeek(session.date);
+        const hour = getSaoPauloHour(session.date);
         weekHourMatrix[dayOfWeek][hour] += session.duration;
       });
 

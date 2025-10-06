@@ -58,6 +58,7 @@ interface TopicCardProps {
   };
   performance: number;
   studyId: string;
+  lastStudyDate: Date | null;
   onTopicClick: () => void;
   onEditClick: (e: React.MouseEvent) => void;
   onDeleteClick: () => void;
@@ -72,6 +73,7 @@ function SortableTopicCard({
   topic,
   performance,
   studyId,
+  lastStudyDate,
   onTopicClick,
   onEditClick,
   onDeleteClick,
@@ -144,6 +146,12 @@ function SortableTopicCard({
                 {performance.toFixed(0)}
               </div>
               <TopicTime topicId={topic.id} disciplineId={topic.disciplineId} studyId={studyId} showButton={true} />
+              {lastStudyDate && (
+                <div className="flex items-center gap-1 px-2 py-1 bg-muted/50 border border-border rounded-md text-xs text-muted-foreground">
+                  <History className="h-3 w-3" />
+                  {new Date(lastStudyDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                </div>
+              )}
               <div className="flex items-center gap-1 ml-auto sm:ml-0" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEditClick} title="Editar">
                   <Edit className="h-4 w-4" />
@@ -172,6 +180,14 @@ function DisciplinePage() {
   });
 
   const topics = topicsQuery.data ?? [];
+
+  // Buscar sessões de todos os tópicos para calcular última data de estudo
+  const topicSessionQueries = topics.map(topic =>
+    useQuery({
+      ...trpc.getTimeSessionsByTopic.queryOptions({ topicId: topic.id }),
+      staleTime: 30000,
+    })
+  );
 
   useEffect(() => {
     setTopicsState(topics.map(topic => ({
@@ -434,32 +450,37 @@ function DisciplinePage() {
                 </CardContent>
               </Card>
             ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragStart={() => setIsDraggingGlobal(true)}
-                  onDragEnd={handleDragEnd}
-                  onDragCancel={() => setIsDraggingGlobal(false)}
-                >
-                  <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                    {topicsState.map(topic => {
-                      const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
-                      return (
-                        <SortableTopicCard
-                          key={topic.id}
-                          topic={topic}
-                          performance={performance}
-                          studyId={discipline.studyId!}
-                          isDraggingGlobal={isDraggingGlobal}
-                          onTopicClick={() => setStudyTopic(topic)}
-                          onEditClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
-                          onDeleteClick={() => handleDeleteTopic(topic.id)}
-                          getStatusBadge={getStatusBadge}
-                        />
-                      );
-                    })}
-                  </SortableContext>
-                </DndContext>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={() => setIsDraggingGlobal(true)}
+                onDragEnd={handleDragEnd}
+                onDragCancel={() => setIsDraggingGlobal(false)}
+              >
+                <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                  {topicsState.map((topic, index) => {
+                    const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
+                    const sessions = topicSessionQueries[index]?.data ?? [];
+                    const lastSession = sessions.length ? sessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0] : null;
+                    const lastStudyDate = lastSession?.startTime ? new Date(lastSession.startTime) : null;
+
+                    return (
+                      <SortableTopicCard
+                        key={topic.id}
+                        topic={topic}
+                        performance={performance}
+                        studyId={discipline.studyId!}
+                        lastStudyDate={lastStudyDate}
+                        isDraggingGlobal={isDraggingGlobal}
+                        onTopicClick={() => setStudyTopic(topic)}
+                        onEditClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
+                        onDeleteClick={() => handleDeleteTopic(topic.id)}
+                        getStatusBadge={getStatusBadge}
+                      />
+                    );
+                  })}
+                </SortableContext>
+              </DndContext>
             )}
             {!topicsQuery.isLoading && topicsState.length === 0 && (
               <Card>
@@ -555,11 +576,10 @@ function DisciplinePage() {
                       status: t.status === 'completed' ? 'not_started' : 'completed'
                     } : null)
                   }
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
-                    studyTopic.status === 'completed'
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${studyTopic.status === 'completed'
                       ? 'bg-success/10 text-success hover:bg-success/20 border border-success/30'
                       : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-muted'
-                  }`}
+                    }`}
                 >
                   {studyTopic.status === 'completed' ? (
                     <Check className="h-5 w-5" />

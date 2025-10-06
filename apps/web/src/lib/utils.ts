@@ -21,12 +21,35 @@ export function formatTimeRelative(ms: number): string {
   }
 
   if (totalSeconds < 3600) {
-    const minutes = Math.round(totalSeconds / 60);
+    const minutes = Math.floor(totalSeconds / 60);
     return `${minutes} minuto${minutes !== 1 ? 's' : ''}`;
   }
 
-  const hours = Math.round(totalSeconds / 3600);
-  return `${hours} hora${hours !== 1 ? 's' : ''}`;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (minutes === 0) {
+    return `${hours} hora${hours !== 1 ? 's' : ''}`;
+  }
+
+  return `${hours}h ${minutes}min`;
+}
+
+export function formatHoursMinutes(ms: number): string {
+  const totalMinutes = Math.floor(ms / 1000 / 60);
+
+  if (totalMinutes < 60) {
+    return `${totalMinutes}min`;
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (minutes === 0) {
+    return `${hours}h`;
+  }
+
+  return `${hours}h ${minutes}min`;
 }
 
 export function formatRemainingDays(totalEstimatedHours: number, studiedHours: number, dailyStudyHours: number): string {

@@ -2,11 +2,11 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { trpc } from '@/utils/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatTime, formatTimeRelative } from '@/lib/utils';
+import { formatTime, formatTimeRelative, formatHoursMinutes } from '@/lib/utils';
 import { BookOpen, Clock, Target, TrendingUp, Award, Flame, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Line } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 export const Route = createFileRoute('/_protected/estatisticas')({
   component: EstatisticasPage,
@@ -27,49 +27,27 @@ function EstatisticasPage() {
 
   const stats = statisticsQuery.data;
 
-  // Formatear dados para o gráfico com bounds checking
+  // Formatear dados para o gráfico
   const chartData = (() => {
-    const data = stats?.dailyData.map(item => ({
-      date: new Date(item.date).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit'
-      }),
-      duration: Math.round(Math.min(item.duration / 1000 / 60 / 60, 24)), // converter para horas, max 24h por dia
-      desempenho: item.performance || 0, // Usar desempenho real do backend
-      questoes: item.questions || 0, // Número total de questões
-      acertos: item.correct || 0, // Questões corretas
-      erros: item.wrong || 0 // Questões erradas
-    })) ?? [];
-
-    // Adicionar hoje se não existir
-    const today = new Date().toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit'
-    });
-
-    if (data.length > 0 && !data.some(d => d.date === today)) {
-      data.push({
-        date: today,
-        duration: 0,
-        desempenho: 0,
-        questoes: 0,
-        acertos: 0,
-        erros: 0
-      });
-    }
+    const data = stats?.dailyData
+      .filter(item => item.duration > 0)
+      .map(item => ({
+        date: new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit'
+        }),
+        durationMinutes: Math.floor(item.duration / 1000 / 60),
+        durationMs: item.duration,
+        desempenho: item.performance || 0,
+        questoes: item.questions || 0,
+        acertos: item.correct || 0,
+        erros: item.wrong || 0
+      })) ?? [];
 
     return data.sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime());
   })();
 
-  // Calcular teto máximo razoável para o gráfico
-  const maxDuration = Math.max(...chartData.map(d => d.duration), 0);
-
-  // Dados para gráfico de pizza por disciplina
-  const pieData = stats?.disciplineStats.slice(0, 5).map(discipline => ({
-    name: discipline.name,
-    value: Math.round(discipline.time / 1000 / 60), // converter para minutos
-    color: `hsl(${Math.random() * 360}, 70%, 50%)`
-  })) || [];
+  const maxDurationMinutes = Math.max(...chartData.map(d => d.durationMinutes), 0);
 
 
   if (statisticsQuery.isLoading || studiesQuery.isLoading) {
@@ -188,8 +166,8 @@ function EstatisticasPage() {
                     />
                     <YAxis
                       tick={{ fontSize: 10 }}
-                      domain={[0, Math.max(Math.ceil((maxDuration + 2) / 5) * 5, 20)]}
-                      label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
+                      domain={[0, Math.max(Math.ceil((maxDurationMinutes + 10) / 30) * 30, 60)]}
+                      label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip
                       contentStyle={{
@@ -204,10 +182,13 @@ function EstatisticasPage() {
                       wrapperStyle={{
                         opacity: 1
                       }}
-                      formatter={(value) => [`${Number(value)}h`, 'Tempo de Estudo']}
+                      formatter={(_value: any, _name: any, props: any) => [
+                        formatHoursMinutes(props.payload.durationMs),
+                        'Tempo de Estudo'
+                      ]}
                       labelFormatter={(label) => `Data: ${label}`}
                     />
-                    <Bar dataKey="duration" fill="#e66912" name="horas" />
+                    <Bar dataKey="durationMinutes" fill="#e66912" name="minutos" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -271,7 +252,7 @@ function EstatisticasPage() {
                       <div>
                         <p className="text-sm font-medium">Tempo Médio Diário</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatTimeRelative(stats.totalTime / (selectedPeriod === 'all' ? 9999 : selectedPeriod))} em média
+                          {formatTimeRelative(stats.averageSessionTime)} por sessão
                         </p>
                       </div>
                     </div>
@@ -307,9 +288,9 @@ function EstatisticasPage() {
                     <div className="flex items-start gap-3">
                       <BookOpen className="h-5 w-5 text-primary mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium">Frequência de Estudo</p>
+                        <p className="text-sm font-medium">Total de Sessões</p>
                         <p className="text-xs text-muted-foreground">
-                          {(stats.totalSessions / (selectedPeriod === 'all' ? 9999 : selectedPeriod)).toFixed(1)} sessões por dia em média
+                          {stats.totalSessions} sessões de estudo
                         </p>
                       </div>
                     </div>
@@ -357,7 +338,7 @@ function EstatisticasPage() {
                   />
                   <YAxis
                     tick={{ fontSize: 10 }}
-                    label={{ value: 'Taxa de Acertos (%)', angle: -90, position: 'insideLeft' }}
+                    label={{ value: 'Acertos (%)', angle: -90, position: 'insideLeft', dy: 30 }}
                     domain={[0, 100]}
                   />
                   <Tooltip
