@@ -181,14 +181,6 @@ function DisciplinePage() {
 
   const topics = topicsQuery.data ?? [];
 
-  // Buscar sessões de todos os tópicos para calcular última data de estudo
-  const topicSessionQueries = topics.map(topic =>
-    useQuery({
-      ...trpc.getTimeSessionsByTopic.queryOptions({ topicId: topic.id }),
-      staleTime: 30000,
-    })
-  );
-
   useEffect(() => {
     setTopicsState(topics.map(topic => ({
       ...topic,
@@ -458,10 +450,10 @@ function DisciplinePage() {
                 onDragCancel={() => setIsDraggingGlobal(false)}
               >
                 <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                  {topicsState.map((topic, index) => {
+                  {topicsState.map(topic => {
                     const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
-                    const sessions = topicSessionQueries[index]?.data ?? [];
-                    const lastSession = sessions.length ? sessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0] : null;
+                    const sessions = queryClient.getQueryData(trpc.getTimeSessionsByTopic.queryKey({ topicId: topic.id })) as any[] | undefined;
+                    const lastSession = sessions?.length ? [...sessions].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0] : null;
                     const lastStudyDate = lastSession?.startTime ? new Date(lastSession.startTime) : null;
 
                     return (

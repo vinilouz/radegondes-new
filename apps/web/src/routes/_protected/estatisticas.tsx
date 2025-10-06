@@ -29,22 +29,56 @@ function EstatisticasPage() {
 
   // Formatear dados para o gráfico
   const chartData = (() => {
-    const data = stats?.dailyData
-      .filter(item => item.duration > 0)
-      .map(item => ({
-        date: new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit'
-        }),
-        durationMinutes: Math.floor(item.duration / 1000 / 60),
-        durationMs: item.duration,
-        desempenho: item.performance || 0,
-        questoes: item.questions || 0,
-        acertos: item.correct || 0,
-        erros: item.wrong || 0
-      })) ?? [];
+    if (!stats?.dailyData) return [];
 
-    return data.sort((a, b) => new Date(a.date.split('/').reverse().join('-')).getTime() - new Date(b.date.split('/').reverse().join('-')).getTime());
+    // Criar mapa de dados existentes
+    const dataMap = new Map(
+      stats.dailyData.map(item => [
+        item.date,
+        {
+          date: new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit'
+          }),
+          durationMinutes: Math.floor(item.duration / 1000 / 60),
+          durationMs: item.duration,
+          desempenho: item.performance || 0,
+          questoes: item.questions || 0,
+          acertos: item.correct || 0,
+          erros: item.wrong || 0
+        }
+      ])
+    );
+
+    // Gerar array completo de datas do período
+    const days = selectedPeriod === 'all' ? 365 : selectedPeriod;
+    const today = new Date();
+    const allDates = [];
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      if (dataMap.has(dateStr)) {
+        allDates.push(dataMap.get(dateStr)!);
+      } else {
+        allDates.push({
+          date: date.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit'
+          }),
+          durationMinutes: 0,
+          durationMs: 0,
+          desempenho: 0,
+          questoes: 0,
+          acertos: 0,
+          erros: 0
+        });
+      }
+    }
+
+    return allDates;
   })();
 
   const maxDurationMinutes = Math.max(...chartData.map(d => d.durationMinutes), 0);
