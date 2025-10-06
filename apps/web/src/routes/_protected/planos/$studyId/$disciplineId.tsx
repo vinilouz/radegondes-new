@@ -147,8 +147,9 @@ function SortableTopicCard({
               </div>
               <TopicTime topicId={topic.id} disciplineId={topic.disciplineId} studyId={studyId} showButton={true} />
               {lastStudyDate && (
-                <div className="flex items-center gap-1 px-2 py-1 bg-muted/50 border border-border rounded-md text-xs text-muted-foreground">
-                  <History className="h-3 w-3" />
+                <div className="flex items-center gap-1 px-2 py-1 bg-muted/50 border border-border rounded-md text-sm text-muted-foreground">
+                  <History className="h-4 w-4" />
+                  <span className="text-xs">Último estudo:</span>
                   {new Date(lastStudyDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                 </div>
               )}
@@ -224,12 +225,34 @@ function DisciplinePage() {
     enabled: !!studyTopic,
   });
 
+  const [topicLastDates, setTopicLastDates] = useState<Record<string, Date>>({});
+
   useEffect(() => {
     const topicIds = topics.map(t => t.id);
     if (topicIds.length > 0) {
       timerActions.loadTotals(topicIds);
+
+      const fetchLastDates = async () => {
+        const dates: Record<string, Date> = {};
+        await Promise.all(
+          topicIds.map(async (topicId) => {
+            const sessions = await queryClient.fetchQuery(
+              trpc.getTimeSessionsByTopic.queryOptions({ topicId })
+            );
+            if (sessions && sessions.length > 0) {
+              const sorted = [...sessions].sort((a, b) =>
+                new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+              );
+              dates[topicId] = new Date(sorted[0].startTime);
+            }
+          })
+        );
+        setTopicLastDates(dates);
+      };
+
+      fetchLastDates();
     }
-  }, [topics.map(t => t.id).join(',')]);
+  }, [topics.map(t => t.id).join(','), queryClient]);
 
 
   const totalDisciplineTime = useMemo(() => topics.map(t => t.id).reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0), [topics, storeState]);
@@ -452,9 +475,7 @@ function DisciplinePage() {
                 <SortableContext items={topicsState.map(t => t.id)} strategy={verticalListSortingStrategy}>
                   {topicsState.map(topic => {
                     const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
-                    const sessions = queryClient.getQueryData(trpc.getTimeSessionsByTopic.queryKey({ topicId: topic.id })) as any[] | undefined;
-                    const lastSession = sessions?.length ? [...sessions].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0] : null;
-                    const lastStudyDate = lastSession?.startTime ? new Date(lastSession.startTime) : null;
+                    const lastStudyDate = topicLastDates[topic.id] || null;
 
                     return (
                       <SortableTopicCard
