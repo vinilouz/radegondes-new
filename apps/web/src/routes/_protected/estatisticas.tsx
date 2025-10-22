@@ -201,7 +201,7 @@ function EstatisticasPage() {
                     <YAxis
                       tick={{ fontSize: 10 }}
                       domain={[0, Math.max(Math.ceil((maxDurationMinutes + 10) / 30) * 30, 60)]}
-                      label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
+                      label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip
                       contentStyle={{

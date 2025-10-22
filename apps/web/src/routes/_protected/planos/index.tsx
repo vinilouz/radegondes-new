@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, BookCopy, CalendarIcon, Home } from "lucide-react";
+import { Plus, Trash2, BookOpen, MoreHorizontal, Timer, BookCopy, CalendarIcon, Home, Edit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_protected/planos/")({
   component: StudiesPage,
 });
 
-function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigate: any; handleDeleteStudy: any }) {
+function StudyCard({ study, navigate, handleDeleteStudy, handleRenameStudy }: { study: any; navigate: any; handleDeleteStudy: any; handleRenameStudy: any }) {
   const [studyTime, setStudyTime] = useState(0);
   const storeState = useStore(studyTimerStore);
 
@@ -81,6 +81,15 @@ function StudyCard({ study, navigate, handleDeleteStudy }: { study: any; navigat
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation()
+                handleRenameStudy(study.id, study.name)
+              }}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Renomear
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation()
@@ -172,6 +181,13 @@ function StudiesPage() {
     },
   })
 
+  const updateStudyMutation = useMutation({
+    ...trpc.updateStudy.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.getStudies.queryKey() });
+    },
+  })
+
   const deleteStudyMutation = useMutation({
     ...trpc.deleteStudy.mutationOptions(),
     onSuccess: () => {
@@ -186,6 +202,14 @@ function StudiesPage() {
       name: newStudyName,
       description: newStudyDescription || undefined,
     })
+  }
+
+  const handleRenameStudy = (studyId: string, currentName: string) => {
+    const newName = prompt("Novo nome do estudo:", currentName);
+    if (!newName) return;
+    const trimmedName = newName.trim();
+    if (!trimmedName || trimmedName === currentName) return;
+    updateStudyMutation.mutate({ id: studyId, name: trimmedName });
   }
 
   const handleDeleteStudy = (studyId: string) => {
@@ -351,6 +375,7 @@ function StudiesPage() {
               study={study}
               navigate={navigate}
               handleDeleteStudy={handleDeleteStudy}
+              handleRenameStudy={handleRenameStudy}
             />
           ))}
         </div>
