@@ -1,5 +1,6 @@
 import { protectedProcedure, publicProcedure, router, loggerMiddleware } from "../lib/trpc";
 import { timerRouter } from "./timer";
+import { revisionRouter } from "./revision";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
 import { user } from "../db/schema/auth";
@@ -11,6 +12,7 @@ export const appRouter = router({
     return "OK";
   }),
   timer: timerRouter,
+  revision: revisionRouter,
   privateData: protectedProcedure.use(loggerMiddleware).query(({ ctx }) => {
     return {
       message: "This is private",

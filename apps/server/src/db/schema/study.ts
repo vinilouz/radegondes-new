@@ -53,3 +53,19 @@ export const timeSession = pgTable("time_session", {
 	idxDuration: index("idx_time_session_duration").on(table.duration),
 	idxTopicIdDuration: index("idx_time_session_topic_id_duration").on(table.topicId, table.duration),
 }));
+
+export const revision = pgTable("revision", {
+	id: text("id").primaryKey(),
+	topicId: text("topic_id")
+		.notNull()
+		.references(() => topic.id, { onDelete: "cascade" }),
+	scheduledDate: timestamp("scheduled_date").notNull(),
+	completed: integer("completed").notNull().default(0),
+	completedAt: timestamp("completed_at"),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+	idxTopicId: index("idx_revision_topic_id").on(table.topicId),
+	idxScheduledDate: index("idx_revision_scheduled_date").on(table.scheduledDate),
+	idxTopicIdScheduledDate: index("idx_revision_topic_id_scheduled_date").on(table.topicId, table.scheduledDate),
+}));

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { timerActions, selectors, studyTimerStore } from '@/store/studyTimerStore';
 import { TopicTime } from '@/components/TopicTime';
-import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent, Circle, Check, ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronLeft, BookCopy, Timer, Trash2, Plus, CheckCircle2, Loader, Edit, History, Minus, BarChart3, X, Percent, Circle, Check, ChevronUp, ChevronDown, Calendar, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useEffect, useState, useMemo } from 'react';
@@ -15,6 +15,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { formatTime } from '@/lib/utils';
+import { calculatePeriodicDates, calculateWeeklyDates, formatRevisionDate, PERIODIC_DAYS_OPTIONS, WEEKDAY_OPTIONS } from '@/lib/revisionHelpers';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DndContext,
   closestCenter,
@@ -227,6 +231,12 @@ function DisciplinePage() {
 
   const [topicLastDates, setTopicLastDates] = useState<Record<string, Date>>({});
 
+  const [revisionEnabled, setRevisionEnabled] = useState(false);
+  const [revisionMode, setRevisionMode] = useState<'periodic' | 'weekly'>('periodic');
+  const [selectedPeriodicDays, setSelectedPeriodicDays] = useState<number[]>([]);
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
+  const [numberOfWeeks, setNumberOfWeeks] = useState<number>(4);
+
   useEffect(() => {
     const topicIds = topics.map(t => t.id);
     if (topicIds.length > 0) {
@@ -300,6 +310,16 @@ function DisciplinePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.getTimeSessionsByTopic.queryKey({ topicId: studyTopic?.id ?? '' }) });
       if (studyTopic?.id) timerActions.loadTotals([studyTopic.id]);
+    },
+  });
+
+  const createRevisionsMutation = useMutation({
+    ...trpc.revision.createRevisions.mutationOptions(),
+    onSuccess: () => {
+      setRevisionEnabled(false);
+      setSelectedPeriodicDays([]);
+      setSelectedWeekdays([]);
+      setNumberOfWeeks(4);
     },
   });
 
@@ -392,6 +412,42 @@ function DisciplinePage() {
     }
   };
 
+  const previewRevisionDates = useMemo(() => {
+    if (!revisionEnabled) return [];
+
+    const today = new Date();
+
+    if (revisionMode === 'periodic' && selectedPeriodicDays.length > 0) {
+      return calculatePeriodicDates(today, selectedPeriodicDays);
+    }
+
+    if (revisionMode === 'weekly' && selectedWeekdays.length > 0 && numberOfWeeks > 0) {
+      return calculateWeeklyDates(today, selectedWeekdays, numberOfWeeks);
+    }
+
+    return [];
+  }, [revisionEnabled, revisionMode, selectedPeriodicDays, selectedWeekdays, numberOfWeeks]);
+
+  const handleSaveRevisions = () => {
+    if (!studyTopic || previewRevisionDates.length === 0) return;
+
+    createRevisionsMutation.mutate({
+      topicId: studyTopic.id,
+      dates: previewRevisionDates,
+    });
+  };
+
+  const togglePeriodicDay = (day: number) => {
+    setSelectedPeriodicDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
+    );
+  };
+
+  const toggleWeekday = (weekday: number) => {
+    setSelectedWeekdays(prev =>
+      prev.includes(weekday) ? prev.filter(w => w !== weekday) : [...prev, weekday].sort((a, b) => a - b)
+    );
+  };
 
   const getStatusBadge = (status: string) => {
     if (status === 'completed') {
@@ -816,6 +872,118 @@ function DisciplinePage() {
                   <div className="text-center py-6 mt-2">
                     <History className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">Nenhuma sessão registrada</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <Label className="text-base font-semibold">Agendar Revisões</Label>
+                    <p className="text-sm text-muted-foreground mt-1">Configure lembretes para revisar este tópico</p>
+                  </div>
+                  <Switch checked={revisionEnabled} onCheckedChange={setRevisionEnabled} />
+                </div>
+
+                {revisionEnabled && (
+                  <div className="space-y-4">
+                    <Tabs value={revisionMode} onValueChange={(v) => setRevisionMode(v as 'periodic' | 'weekly')}>
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="periodic">Periódica</TabsTrigger>
+                        <TabsTrigger value="weekly">Semanal</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="periodic" className="space-y-4 mt-4">
+                        <div>
+                          <Label className="text-sm mb-2 block">Selecione os dias após hoje</Label>
+                          <div className="grid grid-cols-4 gap-2">
+                            {PERIODIC_DAYS_OPTIONS.map(day => (
+                              <div key={day} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`day-${day}`}
+                                  checked={selectedPeriodicDays.includes(day)}
+                                  onCheckedChange={() => togglePeriodicDay(day)}
+                                />
+                                <label htmlFor={`day-${day}`} className="text-sm cursor-pointer">
+                                  {day} {day === 1 ? 'dia' : 'dias'}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="weekly" className="space-y-4 mt-4">
+                        <div>
+                          <Label className="text-sm mb-2 block">Dias da semana</Label>
+                          <div className="flex gap-2 justify-center flex-wrap">
+                            {WEEKDAY_OPTIONS.map(({ value, label }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => toggleWeekday(value)}
+                                className={`
+                                  flex items-center justify-center w-12 h-12 rounded-full font-semibold text-sm transition-all
+                                  ${selectedWeekdays.includes(value)
+                                    ? 'bg-primary text-primary-foreground shadow-lg scale-110'
+                                    : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:scale-105'
+                                  }
+                                `}
+                                title={label}
+                              >
+                                {label.slice(0, 3)}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center mt-2">
+                            {selectedWeekdays.length === 0 ? 'Selecione pelo menos um dia' : `${selectedWeekdays.length} dia(s) selecionado(s)`}
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="weeks-input" className="text-sm mb-2 block">Repetir por quantas semanas?</Label>
+                          <div className="flex items-center gap-3">
+                            <Input
+                              id="weeks-input"
+                              type="number"
+                              min="1"
+                              max="52"
+                              value={numberOfWeeks}
+                              onChange={(e) => setNumberOfWeeks(Math.max(1, Math.min(52, parseInt(e.target.value) || 1)))}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              {numberOfWeeks === 1 ? 'semana' : 'semanas'}
+                            </span>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+
+                    {previewRevisionDates.length > 0 && (
+                      <div className="bg-muted/30 rounded-lg p-3 mt-4">
+                        <Label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                          <CalendarPlus className="h-4 w-4" />
+                          Revisões agendadas ({previewRevisionDates.length})
+                        </Label>
+                        <div className="max-h-32 overflow-y-auto space-y-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full">
+                          {previewRevisionDates.map((date, index) => (
+                            <div key={index} className="text-xs bg-background px-2 py-1 rounded flex items-center gap-2">
+                              <Calendar className="h-3 w-3 text-primary" />
+                              {formatRevisionDate(date)}
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          onClick={handleSaveRevisions}
+                          disabled={createRevisionsMutation.isPending}
+                          size="sm"
+                          className="w-full mt-3"
+                        >
+                          {createRevisionsMutation.isPending ? 'Salvando...' : 'Salvar Revisões'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
