@@ -65,7 +65,7 @@ function StudyCard({ study, navigate, handleDeleteStudy, handleRenameStudy }: { 
   return (
     <a
       key={study.id}
-      className="study-card bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:translate-y-[-2px] cursor-pointer overflow-hidden flex flex-col min-h-[180px] no-underline"
+      className="study-card relative bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:translate-y-[-2px] cursor-pointer overflow-hidden flex flex-col min-h-[180px] no-underline"
       href={`/planos/${study.id}`}
       onClick={(e) => {
         e.preventDefault();
@@ -73,10 +73,13 @@ function StudyCard({ study, navigate, handleDeleteStudy, handleRenameStudy }: { 
       }}
       draggable="true"
     >
-      <div className="ellipsis-menu absolute top-2 right-2">
+      <div className="ellipsis-menu absolute top-2 right-2 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="ellipsis-button bg-transparent border-none text-muted-foreground hover:text-foreground p-1 rounded transition-colors">
+            <button
+              className="ellipsis-button bg-transparent border-none text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>

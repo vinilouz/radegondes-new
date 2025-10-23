@@ -81,7 +81,12 @@ function EstatisticasPage() {
     return allDates;
   })();
 
+  const MINIMUM_SCALE_MINUTES = 720;
+  const EXTRA_PADDING_MINUTES = 60;
   const maxDurationMinutes = Math.max(...chartData.map(d => d.durationMinutes), 0);
+  const calculatedMaxScale = maxDurationMinutes >= MINIMUM_SCALE_MINUTES
+    ? maxDurationMinutes + EXTRA_PADDING_MINUTES
+    : MINIMUM_SCALE_MINUTES;
 
 
   if (statisticsQuery.isLoading || studiesQuery.isLoading) {
@@ -200,8 +205,9 @@ function EstatisticasPage() {
                     />
                     <YAxis
                       tick={{ fontSize: 10 }}
-                      domain={[0, Math.max(Math.ceil((maxDurationMinutes + 10) / 30) * 30, 60)]}
+                      domain={[0, calculatedMaxScale]}
                       label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
+                      tickFormatter={(value) => `${(value / 60).toFixed(0)}`}
                     />
                     <Tooltip
                       contentStyle={{
