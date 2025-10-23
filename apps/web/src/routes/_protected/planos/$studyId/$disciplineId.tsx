@@ -63,6 +63,7 @@ interface TopicCardProps {
   performance: number;
   studyId: string;
   lastStudyDate: Date | null;
+  revisionCount?: number;
   onTopicClick: () => void;
   onEditClick: (e: React.MouseEvent) => void;
   onDeleteClick: () => void;
@@ -78,6 +79,7 @@ function SortableTopicCard({
   performance,
   studyId,
   lastStudyDate,
+  revisionCount,
   onTopicClick,
   onEditClick,
   onDeleteClick,
@@ -115,7 +117,15 @@ function SortableTopicCard({
                 <ChevronDown className="h-3 w-3" />
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                <h3 className="font-semibold text-lg">{topic.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-lg">{topic.name}</h3>
+                  {revisionCount > 0 && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 border border-primary/30 rounded text-xs font-medium text-primary" title={`${revisionCount} revisão(ões) agendada(s)`}>
+                      <Calendar className="h-3 w-3" />
+                      <span>{revisionCount}</span>
+                    </div>
+                  )}
+                </div>
                 {getStatusBadge(topic.status)}
               </div>
             </div>
@@ -230,6 +240,7 @@ function DisciplinePage() {
   });
 
   const [topicLastDates, setTopicLastDates] = useState<Record<string, Date>>({});
+  const [topicRevisionCounts, setTopicRevisionCounts] = useState<Record<string, number>>({});
 
   const [revisionEnabled, setRevisionEnabled] = useState(false);
   const [revisionMode, setRevisionMode] = useState<'periodic' | 'weekly'>('periodic');
@@ -260,7 +271,21 @@ function DisciplinePage() {
         setTopicLastDates(dates);
       };
 
+      const fetchRevisionCounts = async () => {
+        const counts: Record<string, number> = {};
+        await Promise.all(
+          topicIds.map(async (topicId) => {
+            const revisions = await queryClient.fetchQuery(
+              trpc.revision.getRevisionsByTopic.queryOptions({ topicId })
+            );
+            counts[topicId] = revisions?.length ?? 0;
+          })
+        );
+        setTopicRevisionCounts(counts);
+      };
+
       fetchLastDates();
+      fetchRevisionCounts();
     }
   }, [topics.map(t => t.id).join(','), queryClient]);
 
@@ -313,13 +338,46 @@ function DisciplinePage() {
     },
   });
 
+  const topicRevisionsQuery = useQuery({
+    ...trpc.revision.getRevisionsByTopic.queryOptions({ topicId: studyTopic?.id ?? '' }),
+    enabled: !!studyTopic,
+  });
+
   const createRevisionsMutation = useMutation({
     ...trpc.revision.createRevisions.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: async () => {
       setRevisionEnabled(false);
       setSelectedPeriodicDays([]);
       setSelectedWeekdays([]);
       setNumberOfWeeks(4);
+      await queryClient.invalidateQueries({ queryKey: trpc.revision.getRevisionsByTopic.queryKey({ topicId: studyTopic?.id ?? '' }) });
+
+      if (studyTopic?.id) {
+        const revisions = await queryClient.fetchQuery(
+          trpc.revision.getRevisionsByTopic.queryOptions({ topicId: studyTopic.id })
+        );
+        setTopicRevisionCounts(prev => ({
+          ...prev,
+          [studyTopic.id]: revisions?.length ?? 0
+        }));
+      }
+    },
+  });
+
+  const deleteRevisionsMutation = useMutation({
+    ...trpc.revision.deleteRevisions.mutationOptions(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: trpc.revision.getRevisionsByTopic.queryKey({ topicId: studyTopic?.id ?? '' }) });
+
+      if (studyTopic?.id) {
+        const revisions = await queryClient.fetchQuery(
+          trpc.revision.getRevisionsByTopic.queryOptions({ topicId: studyTopic.id })
+        );
+        setTopicRevisionCounts(prev => ({
+          ...prev,
+          [studyTopic.id]: revisions?.length ?? 0
+        }));
+      }
     },
   });
 
@@ -449,6 +507,12 @@ function DisciplinePage() {
     );
   };
 
+  const handleDeleteRevision = (revisionId: string) => {
+    if (confirm("Tem certeza que deseja excluir esta revisão?")) {
+      deleteRevisionsMutation.mutate({ revisionIds: [revisionId] });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     if (status === 'completed') {
       return <Badge variant="outline" className="border-success text-success"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
@@ -532,6 +596,7 @@ function DisciplinePage() {
                   {topicsState.map(topic => {
                     const performance = topic.correct + topic.wrong > 0 ? (topic.correct / (topic.correct + topic.wrong)) * 100 : 0;
                     const lastStudyDate = topicLastDates[topic.id] || null;
+                    const revisionCount = topicRevisionCounts[topic.id] || 0;
 
                     return (
                       <SortableTopicCard
@@ -540,6 +605,7 @@ function DisciplinePage() {
                         performance={performance}
                         studyId={discipline.studyId!}
                         lastStudyDate={lastStudyDate}
+                        revisionCount={revisionCount}
                         isDraggingGlobal={isDraggingGlobal}
                         onTopicClick={() => setStudyTopic(topic)}
                         onEditClick={(e) => { e.stopPropagation(); setStudyTopic(topic); }}
@@ -646,8 +712,8 @@ function DisciplinePage() {
                     } : null)
                   }
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${studyTopic.status === 'completed'
-                      ? 'bg-success/10 text-success hover:bg-success/20 border border-success/30'
-                      : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-muted'
+                    ? 'bg-success/10 text-success hover:bg-success/20 border border-success/30'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-muted'
                     }`}
                 >
                   {studyTopic.status === 'completed' ? (
@@ -878,112 +944,174 @@ function DisciplinePage() {
 
               <div className="border-t pt-6 mt-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <Label className="text-base font-semibold">Agendar Revisões</Label>
-                    <p className="text-sm text-muted-foreground mt-1">Configure lembretes para revisar este tópico</p>
-                  </div>
-                  <Switch checked={revisionEnabled} onCheckedChange={setRevisionEnabled} />
+                  <Label className="text-base font-semibold">Revisões</Label>
+                  {!revisionEnabled && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRevisionEnabled(true)}
+                      className="gap-2"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      Agendar Revisão
+                    </Button>
+                  )}
                 </div>
 
-                {revisionEnabled && (
-                  <div className="space-y-4">
-                    <Tabs value={revisionMode} onValueChange={(v) => setRevisionMode(v as 'periodic' | 'weekly')}>
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="periodic">Periódica</TabsTrigger>
-                        <TabsTrigger value="weekly">Semanal</TabsTrigger>
-                      </TabsList>
+                {topicRevisionsQuery.data && topicRevisionsQuery.data.length > 0 && !revisionEnabled && (
+                  <div className="space-y-2 mb-4">
+                    {topicRevisionsQuery.data.map(rev => (
+                      <div key={rev.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50 group hover:border-primary/30 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-medium">
+                            {new Date(rev.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short' })}
+                          </span>
+                          {rev.completed === 1 && (
+                            <Badge variant="outline" className="border-success text-success text-xs">
+                              <Check className="h-3 w-3 mr-1" />
+                              Concluída
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteRevision(rev.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                      <TabsContent value="periodic" className="space-y-4 mt-4">
-                        <div>
-                          <Label className="text-sm mb-2 block">Selecione os dias após hoje</Label>
-                          <div className="grid grid-cols-4 gap-2">
-                            {PERIODIC_DAYS_OPTIONS.map(day => (
-                              <div key={day} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`day-${day}`}
-                                  checked={selectedPeriodicDays.includes(day)}
-                                  onCheckedChange={() => togglePeriodicDay(day)}
-                                />
-                                <label htmlFor={`day-${day}`} className="text-sm cursor-pointer">
-                                  {day} {day === 1 ? 'dia' : 'dias'}
-                                </label>
+                {topicRevisionsQuery.data?.length === 0 && !revisionEnabled && (
+                  <div className="text-center py-8 px-4 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/20">
+                    <Calendar className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma revisão agendada
+                    </p>
+                  </div>
+                )}
+
+                {revisionEnabled && (
+                  <div className="space-y-4 p-4 bg-muted/20 rounded-lg border border-primary/20">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">Nova Revisão</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setRevisionEnabled(false);
+                          setSelectedPeriodicDays([]);
+                          setSelectedWeekdays([]);
+                          setNumberOfWeeks(4);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="space-y-4">
+                      <Tabs value={revisionMode} onValueChange={(v) => setRevisionMode(v as 'periodic' | 'weekly')}>
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="periodic">Periódica</TabsTrigger>
+                          <TabsTrigger value="weekly">Semanal</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="periodic" className="space-y-4 mt-4">
+                          <div>
+                            <Label className="text-sm mb-2 block">Selecione os dias após hoje</Label>
+                            <div className="grid grid-cols-4 gap-2">
+                              {PERIODIC_DAYS_OPTIONS.map(day => (
+                                <div key={day} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`day-${day}`}
+                                    checked={selectedPeriodicDays.includes(day)}
+                                    onCheckedChange={() => togglePeriodicDay(day)}
+                                  />
+                                  <label htmlFor={`day-${day}`} className="text-sm cursor-pointer">
+                                    {day} {day === 1 ? 'dia' : 'dias'}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="weekly" className="space-y-4 mt-4">
+                          <div>
+                            <Label className="text-sm mb-2 block">Dias da semana</Label>
+                            <div className="flex gap-2 justify-center flex-wrap">
+                              {WEEKDAY_OPTIONS.map(({ value, label }) => (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => toggleWeekday(value)}
+                                  className={`
+                                  flex items-center justify-center w-12 h-12 rounded-full font-semibold text-sm transition-all
+                                  ${selectedWeekdays.includes(value)
+                                      ? 'bg-primary text-primary-foreground shadow-lg scale-110'
+                                      : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:scale-105'
+                                    }
+                                `}
+                                  title={label}
+                                >
+                                  {label.slice(0, 3)}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center mt-2">
+                              {selectedWeekdays.length === 0 ? 'Selecione pelo menos um dia' : `${selectedWeekdays.length} dia(s) selecionado(s)`}
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="weeks-input" className="text-sm mb-2 block">Repetir por quantas semanas?</Label>
+                            <div className="flex items-center gap-3">
+                              <Input
+                                id="weeks-input"
+                                type="number"
+                                min="1"
+                                max="52"
+                                value={numberOfWeeks}
+                                onChange={(e) => setNumberOfWeeks(Math.max(1, Math.min(52, parseInt(e.target.value) || 1)))}
+                                className="w-20"
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                {numberOfWeeks === 1 ? 'semana' : 'semanas'}
+                              </span>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+
+                      {previewRevisionDates.length > 0 && (
+                        <div className="bg-muted/30 rounded-lg p-3 mt-4">
+                          <Label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                            <CalendarPlus className="h-4 w-4" />
+                            Revisões agendadas ({previewRevisionDates.length})
+                          </Label>
+                          <div className="max-h-32 overflow-y-auto space-y-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full">
+                            {previewRevisionDates.map((date, index) => (
+                              <div key={index} className="text-xs bg-background px-2 py-1 rounded flex items-center gap-2">
+                                <Calendar className="h-3 w-3 text-primary" />
+                                {formatRevisionDate(date)}
                               </div>
                             ))}
                           </div>
+                          <Button
+                            onClick={handleSaveRevisions}
+                            disabled={createRevisionsMutation.isPending}
+                            size="sm"
+                            className="w-full mt-3"
+                          >
+                            {createRevisionsMutation.isPending ? 'Salvando...' : 'Salvar Revisões'}
+                          </Button>
                         </div>
-                      </TabsContent>
-
-                      <TabsContent value="weekly" className="space-y-4 mt-4">
-                        <div>
-                          <Label className="text-sm mb-2 block">Dias da semana</Label>
-                          <div className="flex gap-2 justify-center flex-wrap">
-                            {WEEKDAY_OPTIONS.map(({ value, label }) => (
-                              <button
-                                key={value}
-                                type="button"
-                                onClick={() => toggleWeekday(value)}
-                                className={`
-                                  flex items-center justify-center w-12 h-12 rounded-full font-semibold text-sm transition-all
-                                  ${selectedWeekdays.includes(value)
-                                    ? 'bg-primary text-primary-foreground shadow-lg scale-110'
-                                    : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:scale-105'
-                                  }
-                                `}
-                                title={label}
-                              >
-                                {label.slice(0, 3)}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="text-xs text-muted-foreground text-center mt-2">
-                            {selectedWeekdays.length === 0 ? 'Selecione pelo menos um dia' : `${selectedWeekdays.length} dia(s) selecionado(s)`}
-                          </p>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="weeks-input" className="text-sm mb-2 block">Repetir por quantas semanas?</Label>
-                          <div className="flex items-center gap-3">
-                            <Input
-                              id="weeks-input"
-                              type="number"
-                              min="1"
-                              max="52"
-                              value={numberOfWeeks}
-                              onChange={(e) => setNumberOfWeeks(Math.max(1, Math.min(52, parseInt(e.target.value) || 1)))}
-                              className="w-20"
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              {numberOfWeeks === 1 ? 'semana' : 'semanas'}
-                            </span>
-                          </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-
-                    {previewRevisionDates.length > 0 && (
-                      <div className="bg-muted/30 rounded-lg p-3 mt-4">
-                        <Label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                          <CalendarPlus className="h-4 w-4" />
-                          Revisões agendadas ({previewRevisionDates.length})
-                        </Label>
-                        <div className="max-h-32 overflow-y-auto space-y-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full">
-                          {previewRevisionDates.map((date, index) => (
-                            <div key={index} className="text-xs bg-background px-2 py-1 rounded flex items-center gap-2">
-                              <Calendar className="h-3 w-3 text-primary" />
-                              {formatRevisionDate(date)}
-                            </div>
-                          ))}
-                        </div>
-                        <Button
-                          onClick={handleSaveRevisions}
-                          disabled={createRevisionsMutation.isPending}
-                          size="sm"
-                          className="w-full mt-3"
-                        >
-                          {createRevisionsMutation.isPending ? 'Salvando...' : 'Salvar Revisões'}
-                        </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
