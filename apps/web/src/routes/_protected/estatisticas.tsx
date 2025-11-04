@@ -15,14 +15,12 @@ export const Route = createFileRoute('/_protected/estatisticas')({
 function EstatisticasPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<number | 'all'>(30);
 
-  // Buscar estatísticas do backend
   const statisticsQuery = useQuery({
     ...trpc.getStudyStatistics.queryOptions({ days: selectedPeriod === 'all' ? 9999 : selectedPeriod }),
   });
 
-  // Buscar todos os estudos para estatísticas gerais
-  const studiesQuery = useQuery({
-    ...trpc.getStudies.queryOptions(),
+  const todayDisciplinesQuery = useQuery({
+    ...trpc.getTodayDisciplines.queryOptions(),
   });
 
   const stats = statisticsQuery.data;
@@ -89,7 +87,7 @@ function EstatisticasPage() {
     : MINIMUM_SCALE_MINUTES;
 
 
-  if (statisticsQuery.isLoading || studiesQuery.isLoading) {
+  if (statisticsQuery.isLoading || todayDisciplinesQuery.isLoading) {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -277,70 +275,30 @@ function EstatisticasPage() {
           </CardContent>
         </Card>
 
-        {/* Insights */}
+        {/* Disciplinas estudadas hoje */}
         <Card>
           <CardHeader>
-            <CardTitle>Insights</CardTitle>
+            <CardTitle>Disciplinas estudadas hoje</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats?.totalTime && stats.totalTime > 0 ? (
-                <>
-                  {stats.totalTime > 0 && (
-                    <div className="flex items-start gap-3">
-                      <Target className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Tempo Médio Diário</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatTimeRelative(stats.averageSessionTime)} por sessão
-                        </p>
-                      </div>
+              {todayDisciplinesQuery.data && todayDisciplinesQuery.data.length > 0 ? (
+                todayDisciplinesQuery.data.map(discipline => (
+                  <div key={discipline.name} className="flex items-start gap-3">
+                    <BookOpen className="h-5 w-5 text-primary mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{discipline.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatTimeRelative(discipline.time)} • {discipline.sessions} sessão{discipline.sessions > 1 ? 'ões' : ''}
+                      </p>
                     </div>
-                  )}
-
-                  {stats.currentStreak >= 2 && (
-                    <div className="flex items-start gap-3">
-                      <Flame className="h-5 w-5 text-success mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">
-                          {stats.currentStreak >= 7 ? 'Excelente Consistência!' : 'Bom Ritmo!'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Streak de {stats.currentStreak} dia{stats.currentStreak > 1 ? 's' : ''} estudando
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {stats.mostProductiveHour !== null && stats.mostProductiveHour !== undefined && (
-                    <div className="flex items-start gap-3">
-                      <Clock className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Horário Mais Produtivo</p>
-                        <p className="text-xs text-muted-foreground">
-                          Às {stats.mostProductiveHour}:00h voce estuda mais
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {stats.totalSessions > 0 && (
-                    <div className="flex items-start gap-3">
-                      <BookOpen className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Total de Sessões</p>
-                        <p className="text-xs text-muted-foreground">
-                          {stats.totalSessions} sessões de estudo
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </>
+                  </div>
+                ))
               ) : (
                 <div className="text-center py-8">
-                  <Award className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                  <BookOpen className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground">
-                    Comece a estudar para ver seus insights
+                    Nenhuma disciplina estudada hoje
                   </p>
                 </div>
               )}

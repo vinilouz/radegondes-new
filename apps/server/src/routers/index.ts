@@ -754,6 +754,42 @@ export const appRouter = router({
       return updated[0];
     }),
 
+  getTodayDisciplines: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const sessions = await db
+        .select({
+          disciplineName: discipline.name,
+          duration: timeSession.duration,
+          startTime: timeSession.startTime,
+        })
+        .from(timeSession)
+        .leftJoin(topic, eq(timeSession.topicId, topic.id))
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .leftJoin(study, eq(discipline.studyId, study.id))
+        .where(and(
+          eq(study.userId, userId),
+          gte(timeSession.startTime, today)
+        ))
+        .orderBy(desc(timeSession.startTime));
+
+      const disciplineMap: Record<string, { name: string; time: number; sessions: number }> = {};
+
+      sessions.forEach(session => {
+        const name = session.disciplineName || 'Sem disciplina';
+        if (!disciplineMap[name]) {
+          disciplineMap[name] = { name, time: 0, sessions: 0 };
+        }
+        disciplineMap[name].time += session.duration;
+        disciplineMap[name].sessions += 1;
+      });
+
+      return Object.values(disciplineMap).sort((a, b) => b.time - a.time);
+    }),
+
   getStudyStatistics: protectedProcedure
     .input(z.object({
       days: z.number().min(1).max(10000).default(30),
