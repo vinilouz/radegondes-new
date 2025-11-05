@@ -1311,6 +1311,28 @@ export const appRouter = router({
       };
     }),
 
+  deleteCycle: protectedProcedure
+    .input(z.object({ cycleId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      const cycleCheck = await db
+        .select()
+        .from(studyCycle)
+        .where(and(eq(studyCycle.id, input.cycleId), eq(studyCycle.userId, userId)))
+        .limit(1);
+
+      if (!cycleCheck.length) {
+        throw new Error("Cycle not found or access denied");
+      }
+
+      await db.delete(cycleSession).where(eq(cycleSession.cycleId, input.cycleId));
+      await db.delete(cycleTopic).where(eq(cycleTopic.cycleId, input.cycleId));
+      await db.delete(studyCycle).where(eq(studyCycle.id, input.cycleId));
+
+      return { success: true };
+    }),
+
   updateCycleProgress: protectedProcedure
     .input(z.object({
       cycleId: z.string(),

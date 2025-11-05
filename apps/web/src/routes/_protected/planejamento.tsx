@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
-import { trpc } from '@/utils/trpc';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { trpc, trpcClient } from '@/utils/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Target, Clock, CheckCircle, Plus, Calendar, TrendingUp, Edit } from 'lucide-react';
+import { Target, Clock, CheckCircle, Plus, Calendar, TrendingUp, Edit, Trash2 } from 'lucide-react';
 import { formatTime, formatTimeRelative, formatHoursMinutes } from '@/lib/utils';
 import { useState } from 'react';
 import { CreateCycleModal } from '@/components/planning/CreateCycleModal';
@@ -19,6 +19,13 @@ function PlanejamentoPage() {
 
   const cyclesQuery = useQuery({
     ...trpc.getCycles.queryOptions(),
+  });
+
+  const deleteCycleMutation = useMutation({
+    mutationFn: (cycleId: string) => trpcClient.deleteCycle.mutate({ cycleId }),
+    onSuccess: () => {
+      cyclesQuery.refetch();
+    },
   });
 
   const cycles = cyclesQuery.data || [];
@@ -71,13 +78,24 @@ function PlanejamentoPage() {
         </div>
 
         {hasCycles && (
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Edit className="h-4 w-4" />
-            Editar Ciclo
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Edit className="h-4 w-4" />
+              Editar Ciclo
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => activeCycle && deleteCycleMutation.mutate(activeCycle.id)}
+              disabled={deleteCycleMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir Plano
+            </Button>
+          </div>
         )}
       </div>
 
