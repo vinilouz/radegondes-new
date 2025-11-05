@@ -127,8 +127,6 @@ export const timerRouter = router({
       // Atualizar ciclo ativo se o tópico estiver nele
       const durationDiffMs = input.duration - oldDuration;
       if (durationDiffMs !== 0) {
-        const durationDiffMinutes = Math.floor(durationDiffMs / 60000);
-
         const activeCycleWithTopic = await db
           .select({
             cycleId: studyCycle.id,
@@ -150,12 +148,12 @@ export const timerRouter = router({
           await db
             .update(studyCycle)
             .set({
-              completedTime: sql`${studyCycle.completedTime} + ${durationDiffMinutes}`,
+              completedTime: sql`${studyCycle.completedTime} + ${durationDiffMs}`,
               updatedAt: new Date(),
             })
             .where(eq(studyCycle.id, cycle.cycleId));
 
-          const newCompletedTime = cycle.completedTime + durationDiffMinutes;
+          const newCompletedTime = cycle.completedTime + durationDiffMs;
           if (newCompletedTime >= cycle.totalRequiredTime && cycle.completedTime < cycle.totalRequiredTime) {
             await db
               .update(studyCycle)

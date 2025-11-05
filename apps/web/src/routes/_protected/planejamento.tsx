@@ -5,12 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Target, Clock, CheckCircle, Plus, Calendar, TrendingUp, Edit } from 'lucide-react';
 import { formatTime, formatTimeRelative, formatHoursMinutes } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CreateCycleModal } from '@/components/planning/CreateCycleModal';
 import { TopicTime } from '@/components/TopicTime';
 import { Badge } from '@/components/ui/badge';
-import { timerActions, studyTimerStore, selectors } from '@/store/studyTimerStore';
-import { useStore } from '@tanstack/react-store';
 
 export const Route = createFileRoute('/_protected/planejamento')({
   component: PlanejamentoPage,
@@ -34,29 +32,13 @@ function PlanejamentoPage() {
   });
 
   const cycleTopics = cycleDetailsQuery.data?.topics || [];
+  const futureSessions = cycleDetailsQuery.data?.futureSessions || [];
 
-  // Carregar totais de tempo dos tópicos do ciclo
-  useEffect(() => {
-    if (cycleTopics.length > 0) {
-      const topicIds = cycleTopics.map(t => t.topicId);
-      timerActions.loadTotals(topicIds);
-    }
-  }, [cycleTopics.map(t => t.topicId).join(',')]);
-
-  // Calcula tempos dos tópicos com um único hook (fora de loops)
-  const topicIds = cycleTopics.map(t => t.topicId);
-  const topicTimesById = useStore(studyTimerStore, (state) => {
-    const times: Record<string, number> = {};
-    for (const id of topicIds) {
-      const saved = state.savedTotals[id] || 0;
-      if (state.activeSession?.topicId === id) {
-        times[id] = saved + (Date.now() - state.activeSession.startTime);
-      } else {
-        times[id] = saved;
-      }
-    }
-    return times;
-  });
+  // Calcular tempo de sessões completadas do ciclo por tópico
+  const cycleCompletedTimeByTopic = cycleTopics.reduce((acc, topic) => {
+    acc[topic.topicId] = topic.completedTime || 0;
+    return acc;
+  }, {} as Record<string, number>);
 
   // Calcular estatísticas gerais
   const completedCycles = cycles.filter(c => c.status === 'completed').length;
@@ -270,9 +252,10 @@ function PlanejamentoPage() {
                     ? topic.requiredTime
                     : ((topic.importance * 30) + ((5 - topic.knowledge) * 20));
                   const requiredMs = estimatedMinutes * 60 * 1000;
-                  const completedMs = topicTimesById[topic.topicId] || 0;
+                  const completedMs = cycleCompletedTimeByTopic[topic.topicId] || 0;
                   const progress = requiredMs > 0 ? Math.round((completedMs / requiredMs) * 100) : 0;
 
+                  const nextSession = futureSessions.find((s) => s.topicId === topic.topicId && s.status === 'pending')
                   return (
                     <Card key={topic.id} className="hover:shadow-md transition-shadow py-0">
                       <CardContent className="p-4 lg:p-6">
@@ -290,12 +273,12 @@ function PlanejamentoPage() {
                                 {formatHoursMinutes(completedMs)} / {formatHoursMinutes(requiredMs)} ({progress}%)
                               </span>
                             </div>
-                          <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
+                            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary transition-all duration-500"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
                           </div>
 
                           <div className="flex items-center justify-between pt-2">
@@ -304,6 +287,15 @@ function PlanejamentoPage() {
                               disciplineId={topic.disciplineId}
                               studyId={topic.studyPlanId}
                               showButton={true}
+                              displayMs={cycleCompletedTimeByTopic[topic.topicId] || 0}
+                              cycleContext={{
+                                cycleId: activeCycle.id,
+                                cycleName: activeCycle.name,
+                                topicName: topic.topicName,
+                                disciplineName: (topic as any).disciplineName ?? '',
+                                cycleSessionId: nextSession?.id
+                              }}
+                              onStop={() => cycleDetailsQuery.refetch()}
                             />
                           </div>
                         </div>

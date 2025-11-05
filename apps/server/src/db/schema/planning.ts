@@ -12,8 +12,8 @@ export const studyCycle = pgTable("study_cycle", {
   studyDays: text("study_days").notNull().default("1,2,3,4,5"), // 0=domingo, 1=segunda, etc
   minSessionDuration: integer("min_session_duration").notNull().default(30), // minutos
   maxSessionDuration: integer("max_session_duration").notNull().default(120), // minutos
-  totalRequiredTime: integer("total_required_time").notNull().default(0), // minutos totais
-  completedTime: integer("completed_time").notNull().default(0), // minutos completos
+  totalRequiredTime: integer("total_required_time").notNull().default(0), // milissegundos totais
+  completedTime: integer("completed_time").notNull().default(0), // milissegundos completos
   startedAt: timestamp("started_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -32,7 +32,7 @@ export const cycleTopic = pgTable("cycle_topic", {
   knowledge: integer("knowledge").notNull().default(3), // 1-5 (5 = mais conhecimento)
   priority: integer("priority").notNull().default(0), // calculado: (importance * 2) + (5 - knowledge)
   requiredTime: integer("required_time").notNull().default(0), // minutos necessários para este tópico
-  completedTime: integer("completed_time").notNull().default(0), // minutos estudados neste tópico
+  completedTime: integer("completed_time").notNull().default(0), // milissegundos estudados neste tópico
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

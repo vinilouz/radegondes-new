@@ -651,18 +651,17 @@ export const appRouter = router({
 
         if (activeCycleWithTopic.length > 0) {
           const cycle = activeCycleWithTopic[0];
-          const durationMinutes = Math.floor(input.duration / 60000);
 
           await db
             .update(studyCycle)
             .set({
-              completedTime: sql`${studyCycle.completedTime} + ${durationMinutes}`,
+              completedTime: sql`${studyCycle.completedTime} + ${input.duration}`,
               updatedAt: new Date(),
             })
             .where(eq(studyCycle.id, cycle.cycleId));
 
           // Verificar se o ciclo foi completado
-          const newCompletedTime = cycle.completedTime + durationMinutes;
+          const newCompletedTime = cycle.completedTime + input.duration;
           if (newCompletedTime >= cycle.totalRequiredTime) {
             await db
               .update(studyCycle)
@@ -1052,8 +1051,9 @@ export const appRouter = router({
       // Calcular prioridades e tempo total
       const topicsWithPriority = input.topics.map(topic => {
         const priority = (topic.importance * 2) + (5 - topic.knowledge);
-        // Tempo base: (importância * 30min) + ((5 - conhecimento) * 20min)
-        const requiredTime = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
+        // Tempo base em minutos: (importância * 30min) + ((5 - conhecimento) * 20min)
+        const requiredTimeMinutes = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
+        const requiredTime = requiredTimeMinutes * 60 * 1000; // Converter para ms
         return {
           ...topic,
           priority,
@@ -1143,8 +1143,9 @@ export const appRouter = router({
       // Calcular prioridades e tempo total
       const topicsWithPriority = input.topics.map(topic => {
         const priority = (topic.importance * 2) + (5 - topic.knowledge);
-        // Tempo base: (importância * 30min) + ((5 - conhecimento) * 20min)
-        const requiredTime = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
+        // Tempo base em minutos: (importância * 30min) + ((5 - conhecimento) * 20min)
+        const requiredTimeMinutes = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
+        const requiredTime = requiredTimeMinutes * 60 * 1000; // Converter para ms
         return {
           ...topic,
           priority,

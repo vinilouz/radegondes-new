@@ -83,10 +83,9 @@ export const timerActions = {
         duration: duration
       })
 
-      // Atualiza progresso do ciclo se aplicável (converte para minutos)
-      const durationMinutes = Math.max(1, Math.round(duration / 60000))
+      // Atualiza progresso do ciclo se aplicável
       try {
-        await cycleActions.updateProgress(session.sessionId, durationMinutes)
+        await cycleActions.updateProgress(session.sessionId, duration)
       } catch (cycleError) {
         console.warn('Could not update cycle progress:', cycleError)
       }
