@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
-import { BookOpen, Home, BarChart3, Menu, Calendar } from "lucide-react";
+import { BookOpen, Home, BarChart3, Menu, Calendar, Target } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 
@@ -15,6 +15,7 @@ export default function Header() {
 
 	const protectedLinks = [
 		{ to: "/planos", label: "Meu Plano", icon: BookOpen },
+		{ to: "/planejamento", label: "Planejamento", icon: Target },
 		{ to: "/revisoes", label: "Revisões", icon: Calendar },
 		{ to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
 	] as const;

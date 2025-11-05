@@ -1,0 +1,14 @@
+{
+  "enabledMcpjsonServers": [
+    "shadcn",
+    "context7",
+    "remotion-documentation",
+    "chrome-devtools",
+    "kibo-ui"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

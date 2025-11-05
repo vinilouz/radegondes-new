@@ -4,7 +4,8 @@ import { revisionRouter } from "./revision";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
 import { user } from "../db/schema/auth";
-import { eq, and, desc, asc, count, gte, sql } from "drizzle-orm";
+import { studyCycle, cycleTopic, cycleSession } from "../db/schema/planning";
+import { eq, and, desc, asc, count, gte, sql, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -631,6 +632,50 @@ export const appRouter = router({
         .where(eq(timeSession.id, input.sessionId))
         .returning();
 
+      // Se a sessão foi finalizada (tem duration), atualizar ciclo ativo se o tópico estiver nele
+      if (input.duration !== undefined && input.duration > 0) {
+        const activeCycleWithTopic = await db
+          .select({
+            cycleId: studyCycle.id,
+            completedTime: studyCycle.completedTime,
+            totalRequiredTime: studyCycle.totalRequiredTime,
+          })
+          .from(studyCycle)
+          .innerJoin(cycleTopic, eq(studyCycle.id, cycleTopic.cycleId))
+          .where(and(
+            eq(studyCycle.userId, userId),
+            eq(studyCycle.status, 'active'),
+            eq(cycleTopic.topicId, sessionCheck[0].topicId)
+          ))
+          .limit(1);
+
+        if (activeCycleWithTopic.length > 0) {
+          const cycle = activeCycleWithTopic[0];
+          const durationMinutes = Math.floor(input.duration / 60000);
+
+          await db
+            .update(studyCycle)
+            .set({
+              completedTime: sql`${studyCycle.completedTime} + ${durationMinutes}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(studyCycle.id, cycle.cycleId));
+
+          // Verificar se o ciclo foi completado
+          const newCompletedTime = cycle.completedTime + durationMinutes;
+          if (newCompletedTime >= cycle.totalRequiredTime) {
+            await db
+              .update(studyCycle)
+              .set({
+                status: 'completed',
+                completedAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .where(eq(studyCycle.id, cycle.cycleId));
+          }
+        }
+      }
+
       return updated[0];
     }),
 
@@ -985,5 +1030,496 @@ export const appRouter = router({
 
       return result;
     }),
+
+  // Planning endpoints
+  createStudyCycle: protectedProcedure
+    .input(z.object({
+      name: z.string().min(1),
+      topics: z.array(z.object({
+        topicId: z.string(),
+        importance: z.number().min(1).max(5),
+        knowledge: z.number().min(1).max(5),
+      })),
+      hoursPerWeek: z.number().min(1).max(40),
+      studyDays: z.array(z.number().min(0).max(6)),
+      minSessionDuration: z.number().min(15).max(120),
+      maxSessionDuration: z.number().min(30).max(240),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { randomUUID } = await import('crypto');
+
+      // Calcular prioridades e tempo total
+      const topicsWithPriority = input.topics.map(topic => {
+        const priority = (topic.importance * 2) + (5 - topic.knowledge);
+        // Tempo base: (importância * 30min) + ((5 - conhecimento) * 20min)
+        const requiredTime = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
+        return {
+          ...topic,
+          priority,
+          requiredTime
+        };
+      });
+
+      const totalRequiredTime = topicsWithPriority.reduce((sum, topic) => {
+        return sum + topic.requiredTime;
+      }, 0);
+
+      const cycleId = randomUUID();
+
+      // Criar ciclo
+      const newCycle = await db
+        .insert(studyCycle)
+        .values({
+          id: cycleId,
+          name: input.name,
+          userId,
+          hoursPerWeek: input.hoursPerWeek,
+          studyDays: input.studyDays.join(','),
+          minSessionDuration: input.minSessionDuration,
+          maxSessionDuration: input.maxSessionDuration,
+          totalRequiredTime,
+          completedTime: 0,
+          startedAt: new Date(),
+          status: 'active'
+        })
+        .returning();
+
+      // Adicionar tópicos ao ciclo ordenados por prioridade
+      const sortedTopics = [...topicsWithPriority].sort((a, b) => b.priority - a.priority);
+
+      for (const [index, topic] of sortedTopics.entries()) {
+        const topicId = randomUUID();
+
+        await db
+          .insert(cycleTopic)
+          .values({
+            id: topicId,
+            cycleId,
+            topicId: topic.topicId,
+            importance: topic.importance,
+            knowledge: topic.knowledge,
+            priority: topic.priority,
+            requiredTime: topic.requiredTime,
+            completedTime: 0,
+            order: index
+          });
+      }
+
+      // Gerar sessões iniciais (primeiras 2 semanas)
+      await generateCycleSessions(cycleId, input.studyDays, input.minSessionDuration, input.maxSessionDuration);
+
+      return newCycle[0];
+    }),
+
+  updateStudyCycle: protectedProcedure
+    .input(z.object({
+      cycleId: z.string(),
+      name: z.string().min(1),
+      topics: z.array(z.object({
+        topicId: z.string(),
+        importance: z.number().min(1).max(5),
+        knowledge: z.number().min(1).max(5),
+      })),
+      hoursPerWeek: z.number().min(1).max(40),
+      studyDays: z.array(z.number().min(0).max(6)),
+      minSessionDuration: z.number().min(15).max(120),
+      maxSessionDuration: z.number().min(30).max(240),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { randomUUID } = await import('crypto');
+
+      const cycleCheck = await db
+        .select()
+        .from(studyCycle)
+        .where(and(eq(studyCycle.id, input.cycleId), eq(studyCycle.userId, userId)))
+        .limit(1);
+
+      if (!cycleCheck.length) {
+        throw new Error("Cycle not found or access denied");
+      }
+
+      // Calcular prioridades e tempo total
+      const topicsWithPriority = input.topics.map(topic => {
+        const priority = (topic.importance * 2) + (5 - topic.knowledge);
+        // Tempo base: (importância * 30min) + ((5 - conhecimento) * 20min)
+        const requiredTime = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
+        return {
+          ...topic,
+          priority,
+          requiredTime
+        };
+      });
+
+      const totalRequiredTime = topicsWithPriority.reduce((sum, topic) => {
+        return sum + topic.requiredTime;
+      }, 0);
+
+      await db
+        .update(studyCycle)
+        .set({
+          name: input.name,
+          hoursPerWeek: input.hoursPerWeek,
+          studyDays: input.studyDays.join(','),
+          minSessionDuration: input.minSessionDuration,
+          maxSessionDuration: input.maxSessionDuration,
+          totalRequiredTime,
+          updatedAt: new Date(),
+        })
+        .where(eq(studyCycle.id, input.cycleId));
+
+      await db.delete(cycleTopic).where(eq(cycleTopic.cycleId, input.cycleId));
+
+      // Adicionar tópicos ao ciclo ordenados por prioridade
+      const sortedTopics = [...topicsWithPriority].sort((a, b) => b.priority - a.priority);
+
+      for (const [index, topic] of sortedTopics.entries()) {
+        const topicId = randomUUID();
+
+        await db
+          .insert(cycleTopic)
+          .values({
+            id: topicId,
+            cycleId: input.cycleId,
+            topicId: topic.topicId,
+            importance: topic.importance,
+            knowledge: topic.knowledge,
+            priority: topic.priority,
+            requiredTime: topic.requiredTime,
+            completedTime: 0,
+            order: index
+          });
+      }
+
+      await db.delete(cycleSession).where(eq(cycleSession.cycleId, input.cycleId));
+      await generateCycleSessions(input.cycleId, input.studyDays, input.minSessionDuration, input.maxSessionDuration);
+
+      const updatedCycle = await db
+        .select()
+        .from(studyCycle)
+        .where(eq(studyCycle.id, input.cycleId))
+        .limit(1);
+
+      return updatedCycle[0];
+    }),
+
+  getCycles: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
+
+      const cycles = await db
+        .select({
+          id: studyCycle.id,
+          name: studyCycle.name,
+          status: studyCycle.status,
+          hoursPerWeek: studyCycle.hoursPerWeek,
+          studyDays: studyCycle.studyDays,
+          minSessionDuration: studyCycle.minSessionDuration,
+          maxSessionDuration: studyCycle.maxSessionDuration,
+          totalRequiredTime: studyCycle.totalRequiredTime,
+          completedTime: studyCycle.completedTime,
+          startedAt: studyCycle.startedAt,
+          completedAt: studyCycle.completedAt,
+          createdAt: studyCycle.createdAt,
+          topicCount: count(cycleTopic.id),
+          completedSessions: count(sql`case when ${cycleSession.status} = 'completed' then 1 end`),
+          totalSessions: count(cycleSession.id)
+        })
+        .from(studyCycle)
+        .leftJoin(cycleTopic, eq(studyCycle.id, cycleTopic.cycleId))
+        .leftJoin(cycleSession, eq(studyCycle.id, cycleSession.cycleId))
+        .where(eq(studyCycle.userId, userId))
+        .groupBy(studyCycle.id, studyCycle.name, studyCycle.status, studyCycle.hoursPerWeek,
+                studyCycle.studyDays, studyCycle.minSessionDuration, studyCycle.maxSessionDuration,
+                studyCycle.totalRequiredTime, studyCycle.completedTime, studyCycle.startedAt,
+                studyCycle.completedAt, studyCycle.createdAt)
+        .orderBy(desc(studyCycle.createdAt));
+
+      return cycles;
+    }),
+
+  getCycleDetails: protectedProcedure
+    .input(z.object({ cycleId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verificar se o ciclo pertence ao usuário
+      const cycleCheck = await db
+        .select()
+        .from(studyCycle)
+        .where(and(eq(studyCycle.id, input.cycleId), eq(studyCycle.userId, userId)))
+        .limit(1);
+
+      if (!cycleCheck.length) {
+        throw new Error("Cycle not found or access denied");
+      }
+
+      const cycle = cycleCheck[0];
+
+      // Buscar tópicos do ciclo
+      const cycleTopics = await db
+        .select({
+          id: cycleTopic.id,
+          topicId: cycleTopic.topicId,
+          importance: cycleTopic.importance,
+          knowledge: cycleTopic.knowledge,
+          priority: cycleTopic.priority,
+          requiredTime: cycleTopic.requiredTime,
+          completedTime: cycleTopic.completedTime,
+          order: cycleTopic.order,
+          topicName: topic.name,
+          disciplineName: discipline.name,
+          disciplineId: topic.disciplineId,
+          studyPlanId: discipline.studyId,
+          correct: topic.correct,
+          wrong: topic.wrong
+        })
+        .from(cycleTopic)
+        .leftJoin(topic, eq(cycleTopic.topicId, topic.id))
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .where(eq(cycleTopic.cycleId, input.cycleId))
+        .orderBy(asc(cycleTopic.order));
+
+      // Buscar sessões futuras (próximas 7 dias)
+      const futureSessions = await db
+        .select({
+          id: cycleSession.id,
+          topicId: cycleSession.topicId,
+          scheduledDate: cycleSession.scheduledDate,
+          duration: cycleSession.duration,
+          status: cycleSession.status,
+          actualDuration: cycleSession.actualDuration,
+          topicName: topic.name,
+          disciplineName: discipline.name
+        })
+        .from(cycleSession)
+        .leftJoin(topic, eq(cycleSession.topicId, topic.id))
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .where(and(
+          eq(cycleSession.cycleId, input.cycleId),
+          gte(cycleSession.scheduledDate, new Date())
+        ))
+        .orderBy(asc(cycleSession.scheduledDate))
+        .limit(20);
+
+      return {
+        cycle,
+        topics: cycleTopics,
+        futureSessions
+      };
+    }),
+
+  updateCycleProgress: protectedProcedure
+    .input(z.object({
+      cycleId: z.string(),
+      timeSessionId: z.string(),
+      actualDuration: z.number().min(0)
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verificar acesso ao ciclo
+      const cycleCheck = await db
+        .select()
+        .from(studyCycle)
+        .where(and(eq(studyCycle.id, input.cycleId), eq(studyCycle.userId, userId)))
+        .limit(1);
+
+      if (!cycleCheck.length) {
+        throw new Error("Cycle not found or access denied");
+      }
+
+      const ts = await db
+        .select({ id: timeSession.id, topicId: timeSession.topicId, userId: study.userId })
+        .from(timeSession)
+        .leftJoin(topic, eq(timeSession.topicId, topic.id))
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .leftJoin(study, eq(discipline.studyId, study.id))
+        .where(eq(timeSession.id, input.timeSessionId))
+        .limit(1);
+
+      if (!ts.length || ts[0].userId !== userId) {
+        throw new Error("Time session not found or access denied");
+      }
+
+      const cs = await db
+        .select()
+        .from(cycleSession)
+        .where(and(
+          eq(cycleSession.cycleId, input.cycleId),
+          eq(cycleSession.topicId, ts[0].topicId),
+          eq(cycleSession.status, 'in_progress')
+        ))
+        .limit(1);
+
+      if (!cs.length) {
+        throw new Error("Cycle session not found");
+      }
+
+      // Atualizar sessão do ciclo
+      await db
+        .update(cycleSession)
+        .set({
+          status: 'completed',
+          actualDuration: input.actualDuration,
+          timeSessionId: input.timeSessionId,
+          updatedAt: new Date()
+        })
+        .where(eq(cycleSession.id, cs[0].id));
+
+      // Atualizar tempo do tópico no ciclo
+      await db
+        .update(cycleTopic)
+        .set({
+          completedTime: sql`${cycleTopic.completedTime} + ${input.actualDuration}`,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(cycleTopic.cycleId, input.cycleId),
+          eq(cycleTopic.topicId, ts[0].topicId)
+        ));
+
+
+
+
+      return { success: true };
+    }),
+
+  startCycleSession: protectedProcedure
+    .input(z.object({
+      cycleSessionId: z.string()
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Buscar sessão do ciclo e verificar acesso
+      const session = await db
+        .select({
+          id: cycleSession.id,
+          topicId: cycleSession.topicId,
+          cycleId: cycleSession.cycleId,
+          cycleName: studyCycle.name,
+          topicName: topic.name,
+          disciplineName: discipline.name
+        })
+        .from(cycleSession)
+        .leftJoin(studyCycle, eq(cycleSession.cycleId, studyCycle.id))
+        .leftJoin(topic, eq(cycleSession.topicId, topic.id))
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .where(and(
+          eq(cycleSession.id, input.cycleSessionId),
+          eq(studyCycle.userId, userId),
+          eq(cycleSession.status, 'pending')
+        ))
+        .limit(1);
+
+      if (!session.length) {
+        throw new Error("Session not found or access denied");
+      }
+
+      // Atualizar status da sessão
+      await db
+        .update(cycleSession)
+        .set({
+          status: 'in_progress',
+          updatedAt: new Date()
+        })
+        .where(eq(cycleSession.id, input.cycleSessionId));
+
+      return session[0];
+    }),
+
+  getTopicsWithUsage: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
+
+      // Buscar todos os tópicos com estatísticas de uso
+      const topics = await db
+        .select({
+          id: topic.id,
+          name: topic.name,
+          disciplineId: topic.disciplineId,
+          disciplineName: discipline.name,
+          totalStudyTime: sql<number>`COALESCE(SUM(${timeSession.duration}), 0)`,
+          sessionCount: count(timeSession.id)
+        })
+        .from(topic)
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .leftJoin(study, eq(discipline.studyId, study.id))
+        .leftJoin(timeSession, eq(topic.id, timeSession.topicId))
+        .where(eq(study.userId, userId))
+        .groupBy(topic.id, topic.name, topic.disciplineId, discipline.name)
+        .orderBy(desc(sql`COALESCE(SUM(${timeSession.duration}), 0)`));
+
+      // Converter tempo de estudo para formato correto (já está em ms, só garantir que não seja null/undefined)
+      const formattedTopics = topics.map(topic => ({
+        ...topic,
+        totalStudyTime: topic.totalStudyTime || 0,
+        sessionCount: topic.sessionCount || 0
+      }));
+
+      return formattedTopics;
+    }),
 });
+
+// Função auxiliar para gerar sessões do ciclo
+async function generateCycleSessions(cycleId: string, studyDays: number[], minDuration: number, maxDuration: number) {
+  const { randomUUID } = await import('crypto');
+  const today = new Date();
+  const sessions: { topicId: string; scheduledDate: Date; duration: number }[] = [];
+
+  // Gerar sessões para as próximas 2 semanas
+  for (let weekOffset = 0; weekOffset < 2; weekOffset++) {
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const currentDate = new Date(today);
+      currentDate.setDate(today.getDate() + (weekOffset * 7) + dayOffset);
+      const dayOfWeek = currentDate.getDay();
+
+      if (studyDays.includes(dayOfWeek)) {
+        // Gerar 2-3 sessões por dia
+        const sessionsPerDay = Math.floor(Math.random() * 2) + 2;
+        for (let i = 0; i < sessionsPerDay; i++) {
+          const hour = 9 + (i * 3); // 9h, 12h, 15h
+          currentDate.setHours(hour, 0, 0, 0);
+
+          sessions.push({
+            topicId: '', // Será preenchido depois
+            scheduledDate: new Date(currentDate),
+            duration: Math.floor(Math.random() * (maxDuration - minDuration + 1)) + minDuration
+          });
+        }
+      }
+    }
+  }
+
+  // Buscar tópicos do ciclo e distribuir
+  const cycleTopics = await db
+    .select()
+    .from(cycleTopic)
+    .where(eq(cycleTopic.cycleId, cycleId))
+    .orderBy(desc(cycleTopic.priority));
+
+  if (cycleTopics.length === 0) return;
+
+  // Distribuir sessões entre tópicos baseado na prioridade
+  let topicIndex = 0;
+  for (const session of sessions) {
+    const selectedTopic = cycleTopics[topicIndex % cycleTopics.length];
+
+    await db
+      .insert(cycleSession)
+      .values({
+        id: randomUUID(),
+        cycleId,
+        topicId: selectedTopic.topicId,
+        scheduledDate: session.scheduledDate,
+        duration: session.duration,
+        status: 'pending'
+      });
+
+    topicIndex++;
+  }
+}
+
 export type AppRouter = typeof appRouter;

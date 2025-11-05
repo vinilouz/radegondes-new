@@ -1,6 +1,7 @@
 import { protectedProcedure, router } from "../lib/trpc";
 import { db } from "../db";
 import { timeSession, topic, discipline, study } from "../db/schema/study";
+import { studyCycle, cycleTopic } from "../db/schema/planning";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -98,7 +99,11 @@ export const timerRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const sessionCheck = await db
-        .select({ id: timeSession.id })
+        .select({
+          id: timeSession.id,
+          oldDuration: timeSession.duration,
+          topicId: timeSession.topicId
+        })
         .from(timeSession)
         .innerJoin(topic, eq(timeSession.topicId, topic.id))
         .innerJoin(discipline, eq(topic.disciplineId, discipline.id))
@@ -110,11 +115,59 @@ export const timerRouter = router({
 
       if (!sessionCheck.length) throw new Error("Session not found or access denied");
 
+      const oldDuration = sessionCheck[0].oldDuration;
+      const topicId = sessionCheck[0].topicId;
+
       const result = await db
         .update(timeSession)
         .set({ duration: input.duration })
         .where(eq(timeSession.id, input.sessionId))
         .returning();
+
+      // Atualizar ciclo ativo se o tópico estiver nele
+      const durationDiffMs = input.duration - oldDuration;
+      if (durationDiffMs !== 0) {
+        const durationDiffMinutes = Math.floor(durationDiffMs / 60000);
+
+        const activeCycleWithTopic = await db
+          .select({
+            cycleId: studyCycle.id,
+            completedTime: studyCycle.completedTime,
+            totalRequiredTime: studyCycle.totalRequiredTime,
+          })
+          .from(studyCycle)
+          .innerJoin(cycleTopic, eq(studyCycle.id, cycleTopic.cycleId))
+          .where(and(
+            eq(studyCycle.userId, ctx.session.user.id),
+            eq(studyCycle.status, 'active'),
+            eq(cycleTopic.topicId, topicId)
+          ))
+          .limit(1);
+
+        if (activeCycleWithTopic.length > 0) {
+          const cycle = activeCycleWithTopic[0];
+
+          await db
+            .update(studyCycle)
+            .set({
+              completedTime: sql`${studyCycle.completedTime} + ${durationDiffMinutes}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(studyCycle.id, cycle.cycleId));
+
+          const newCompletedTime = cycle.completedTime + durationDiffMinutes;
+          if (newCompletedTime >= cycle.totalRequiredTime && cycle.completedTime < cycle.totalRequiredTime) {
+            await db
+              .update(studyCycle)
+              .set({
+                status: 'completed',
+                completedAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .where(eq(studyCycle.id, cycle.cycleId));
+          }
+        }
+      }
 
       return result[0];
     }),
