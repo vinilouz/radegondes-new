@@ -5,6 +5,7 @@ import { formatTime } from '@/lib/utils'
 import { Play, Square } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { trpcClient } from '@/utils/trpc'
 
 interface TopicTimeProps {
   topicId: string
@@ -43,7 +44,7 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId, d
 
     try {
       if (cycleContext?.cycleSessionId) {
-        const result = await (await import('@/utils/trpc')).trpcClient.startCycleSession.mutate({
+        const result = await trpcClient.startCycleSession.mutate({
           cycleSessionId: cycleContext.cycleSessionId
         })
         await cycleActions.startCycleSession({
