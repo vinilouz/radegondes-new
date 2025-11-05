@@ -4,7 +4,7 @@ import { revisionRouter } from "./revision";
 import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
 import { user } from "../db/schema/auth";
-import { studyCycle, cycleTopic, cycleSession } from "../db/schema/planning";
+import { studyCycle, cycleDiscipline } from "../db/schema/planning";
 import { eq, and, desc, asc, count, gte, sql, inArray } from "drizzle-orm";
 import { z } from "zod";
 
@@ -632,49 +632,6 @@ export const appRouter = router({
         .where(eq(timeSession.id, input.sessionId))
         .returning();
 
-      // Se a sessão foi finalizada (tem duration), atualizar ciclo ativo se o tópico estiver nele
-      if (input.duration !== undefined && input.duration > 0) {
-        const activeCycleWithTopic = await db
-          .select({
-            cycleId: studyCycle.id,
-            completedTime: studyCycle.completedTime,
-            totalRequiredTime: studyCycle.totalRequiredTime,
-          })
-          .from(studyCycle)
-          .innerJoin(cycleTopic, eq(studyCycle.id, cycleTopic.cycleId))
-          .where(and(
-            eq(studyCycle.userId, userId),
-            eq(studyCycle.status, 'active'),
-            eq(cycleTopic.topicId, sessionCheck[0].topicId)
-          ))
-          .limit(1);
-
-        if (activeCycleWithTopic.length > 0) {
-          const cycle = activeCycleWithTopic[0];
-
-          await db
-            .update(studyCycle)
-            .set({
-              completedTime: sql`${studyCycle.completedTime} + ${input.duration}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(studyCycle.id, cycle.cycleId));
-
-          // Verificar se o ciclo foi completado
-          const newCompletedTime = cycle.completedTime + input.duration;
-          if (newCompletedTime >= cycle.totalRequiredTime) {
-            await db
-              .update(studyCycle)
-              .set({
-                status: 'completed',
-                completedAt: new Date(),
-                updatedAt: new Date(),
-              })
-              .where(eq(studyCycle.id, cycle.cycleId));
-          }
-        }
-      }
-
       return updated[0];
     }),
 
@@ -1034,40 +991,19 @@ export const appRouter = router({
   createStudyCycle: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
-      topics: z.array(z.object({
-        topicId: z.string(),
+      disciplines: z.array(z.object({
+        disciplineId: z.string(),
         importance: z.number().min(1).max(5),
         knowledge: z.number().min(1).max(5),
       })),
       hoursPerWeek: z.number().min(1).max(40),
-      studyDays: z.array(z.number().min(0).max(6)),
-      minSessionDuration: z.number().min(15).max(120),
-      maxSessionDuration: z.number().min(30).max(240),
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const { randomUUID } = await import('crypto');
 
-      // Calcular prioridades e tempo total
-      const topicsWithPriority = input.topics.map(topic => {
-        const priority = (topic.importance * 2) + (5 - topic.knowledge);
-        // Tempo base em minutos: (importância * 30min) + ((5 - conhecimento) * 20min)
-        const requiredTimeMinutes = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
-        const requiredTime = requiredTimeMinutes * 60 * 1000; // Converter para ms
-        return {
-          ...topic,
-          priority,
-          requiredTime
-        };
-      });
-
-      const totalRequiredTime = topicsWithPriority.reduce((sum, topic) => {
-        return sum + topic.requiredTime;
-      }, 0);
-
       const cycleId = randomUUID();
 
-      // Criar ciclo
       const newCycle = await db
         .insert(studyCycle)
         .values({
@@ -1075,39 +1011,24 @@ export const appRouter = router({
           name: input.name,
           userId,
           hoursPerWeek: input.hoursPerWeek,
-          studyDays: input.studyDays.join(','),
-          minSessionDuration: input.minSessionDuration,
-          maxSessionDuration: input.maxSessionDuration,
-          totalRequiredTime,
-          completedTime: 0,
+          studyDays: "1,2,3,4,5",
+          minSessionDuration: 30,
+          maxSessionDuration: 90,
           startedAt: new Date(),
-          status: 'active'
         })
         .returning();
 
-      // Adicionar tópicos ao ciclo ordenados por prioridade
-      const sortedTopics = [...topicsWithPriority].sort((a, b) => b.priority - a.priority);
-
-      for (const [index, topic] of sortedTopics.entries()) {
-        const topicId = randomUUID();
-
+      for (const disc of input.disciplines) {
         await db
-          .insert(cycleTopic)
+          .insert(cycleDiscipline)
           .values({
-            id: topicId,
+            id: randomUUID(),
             cycleId,
-            topicId: topic.topicId,
-            importance: topic.importance,
-            knowledge: topic.knowledge,
-            priority: topic.priority,
-            requiredTime: topic.requiredTime,
-            completedTime: 0,
-            order: index
+            disciplineId: disc.disciplineId,
+            importance: disc.importance,
+            knowledge: disc.knowledge,
           });
       }
-
-      // Gerar sessões iniciais (primeiras 2 semanas)
-      await generateCycleSessions(cycleId, input.studyDays, input.minSessionDuration, input.maxSessionDuration);
 
       return newCycle[0];
     }),
@@ -1116,15 +1037,12 @@ export const appRouter = router({
     .input(z.object({
       cycleId: z.string(),
       name: z.string().min(1),
-      topics: z.array(z.object({
-        topicId: z.string(),
+      disciplines: z.array(z.object({
+        disciplineId: z.string(),
         importance: z.number().min(1).max(5),
         knowledge: z.number().min(1).max(5),
       })),
       hoursPerWeek: z.number().min(1).max(40),
-      studyDays: z.array(z.number().min(0).max(6)),
-      minSessionDuration: z.number().min(15).max(120),
-      maxSessionDuration: z.number().min(30).max(240),
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
@@ -1140,61 +1058,28 @@ export const appRouter = router({
         throw new Error("Cycle not found or access denied");
       }
 
-      // Calcular prioridades e tempo total
-      const topicsWithPriority = input.topics.map(topic => {
-        const priority = (topic.importance * 2) + (5 - topic.knowledge);
-        // Tempo base em minutos: (importância * 30min) + ((5 - conhecimento) * 20min)
-        const requiredTimeMinutes = (topic.importance * 30) + ((5 - topic.knowledge) * 20);
-        const requiredTime = requiredTimeMinutes * 60 * 1000; // Converter para ms
-        return {
-          ...topic,
-          priority,
-          requiredTime
-        };
-      });
-
-      const totalRequiredTime = topicsWithPriority.reduce((sum, topic) => {
-        return sum + topic.requiredTime;
-      }, 0);
-
       await db
         .update(studyCycle)
         .set({
           name: input.name,
           hoursPerWeek: input.hoursPerWeek,
-          studyDays: input.studyDays.join(','),
-          minSessionDuration: input.minSessionDuration,
-          maxSessionDuration: input.maxSessionDuration,
-          totalRequiredTime,
           updatedAt: new Date(),
         })
         .where(eq(studyCycle.id, input.cycleId));
 
-      await db.delete(cycleTopic).where(eq(cycleTopic.cycleId, input.cycleId));
+      await db.delete(cycleDiscipline).where(eq(cycleDiscipline.cycleId, input.cycleId));
 
-      // Adicionar tópicos ao ciclo ordenados por prioridade
-      const sortedTopics = [...topicsWithPriority].sort((a, b) => b.priority - a.priority);
-
-      for (const [index, topic] of sortedTopics.entries()) {
-        const topicId = randomUUID();
-
+      for (const disc of input.disciplines) {
         await db
-          .insert(cycleTopic)
+          .insert(cycleDiscipline)
           .values({
-            id: topicId,
+            id: randomUUID(),
             cycleId: input.cycleId,
-            topicId: topic.topicId,
-            importance: topic.importance,
-            knowledge: topic.knowledge,
-            priority: topic.priority,
-            requiredTime: topic.requiredTime,
-            completedTime: 0,
-            order: index
+            disciplineId: disc.disciplineId,
+            importance: disc.importance,
+            knowledge: disc.knowledge,
           });
       }
-
-      await db.delete(cycleSession).where(eq(cycleSession.cycleId, input.cycleId));
-      await generateCycleSessions(input.cycleId, input.studyDays, input.minSessionDuration, input.maxSessionDuration);
 
       const updatedCycle = await db
         .select()
@@ -1213,28 +1098,20 @@ export const appRouter = router({
         .select({
           id: studyCycle.id,
           name: studyCycle.name,
-          status: studyCycle.status,
           hoursPerWeek: studyCycle.hoursPerWeek,
           studyDays: studyCycle.studyDays,
           minSessionDuration: studyCycle.minSessionDuration,
           maxSessionDuration: studyCycle.maxSessionDuration,
-          totalRequiredTime: studyCycle.totalRequiredTime,
-          completedTime: studyCycle.completedTime,
           startedAt: studyCycle.startedAt,
-          completedAt: studyCycle.completedAt,
           createdAt: studyCycle.createdAt,
-          topicCount: count(cycleTopic.id),
-          completedSessions: count(sql`case when ${cycleSession.status} = 'completed' then 1 end`),
-          totalSessions: count(cycleSession.id)
+          disciplineCount: count(cycleDiscipline.id),
         })
         .from(studyCycle)
-        .leftJoin(cycleTopic, eq(studyCycle.id, cycleTopic.cycleId))
-        .leftJoin(cycleSession, eq(studyCycle.id, cycleSession.cycleId))
+        .leftJoin(cycleDiscipline, eq(studyCycle.id, cycleDiscipline.cycleId))
         .where(eq(studyCycle.userId, userId))
-        .groupBy(studyCycle.id, studyCycle.name, studyCycle.status, studyCycle.hoursPerWeek,
+        .groupBy(studyCycle.id, studyCycle.name, studyCycle.hoursPerWeek,
                 studyCycle.studyDays, studyCycle.minSessionDuration, studyCycle.maxSessionDuration,
-                studyCycle.totalRequiredTime, studyCycle.completedTime, studyCycle.startedAt,
-                studyCycle.completedAt, studyCycle.createdAt)
+                studyCycle.startedAt, studyCycle.createdAt)
         .orderBy(desc(studyCycle.createdAt));
 
       return cycles;
@@ -1245,7 +1122,6 @@ export const appRouter = router({
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Verificar se o ciclo pertence ao usuário
       const cycleCheck = await db
         .select()
         .from(studyCycle)
@@ -1258,56 +1134,26 @@ export const appRouter = router({
 
       const cycle = cycleCheck[0];
 
-      // Buscar tópicos do ciclo
-      const cycleTopics = await db
+      const cycleDisciplines = await db
         .select({
-          id: cycleTopic.id,
-          topicId: cycleTopic.topicId,
-          importance: cycleTopic.importance,
-          knowledge: cycleTopic.knowledge,
-          priority: cycleTopic.priority,
-          requiredTime: cycleTopic.requiredTime,
-          completedTime: cycleTopic.completedTime,
-          order: cycleTopic.order,
-          topicName: topic.name,
+          id: cycleDiscipline.id,
+          disciplineId: cycleDiscipline.disciplineId,
+          studyId: discipline.studyId,
+          importance: cycleDiscipline.importance,
+          knowledge: cycleDiscipline.knowledge,
           disciplineName: discipline.name,
-          disciplineId: topic.disciplineId,
-          studyPlanId: discipline.studyId,
-          correct: topic.correct,
-          wrong: topic.wrong
+          topicCount: count(topic.id),
         })
-        .from(cycleTopic)
-        .leftJoin(topic, eq(cycleTopic.topicId, topic.id))
-        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
-        .where(eq(cycleTopic.cycleId, input.cycleId))
-        .orderBy(asc(cycleTopic.order));
-
-      // Buscar sessões futuras (próximas 7 dias)
-      const futureSessions = await db
-        .select({
-          id: cycleSession.id,
-          topicId: cycleSession.topicId,
-          scheduledDate: cycleSession.scheduledDate,
-          duration: cycleSession.duration,
-          status: cycleSession.status,
-          actualDuration: cycleSession.actualDuration,
-          topicName: topic.name,
-          disciplineName: discipline.name
-        })
-        .from(cycleSession)
-        .leftJoin(topic, eq(cycleSession.topicId, topic.id))
-        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
-        .where(and(
-          eq(cycleSession.cycleId, input.cycleId),
-          gte(cycleSession.scheduledDate, new Date())
-        ))
-        .orderBy(asc(cycleSession.scheduledDate))
-        .limit(20);
+        .from(cycleDiscipline)
+        .leftJoin(discipline, eq(cycleDiscipline.disciplineId, discipline.id))
+        .leftJoin(topic, eq(discipline.id, topic.disciplineId))
+        .where(eq(cycleDiscipline.cycleId, input.cycleId))
+        .groupBy(cycleDiscipline.id, cycleDiscipline.disciplineId, discipline.studyId, cycleDiscipline.importance,
+                cycleDiscipline.knowledge, discipline.name);
 
       return {
         cycle,
-        topics: cycleTopics,
-        futureSessions
+        disciplines: cycleDisciplines,
       };
     }),
 
@@ -1326,131 +1172,10 @@ export const appRouter = router({
         throw new Error("Cycle not found or access denied");
       }
 
-      await db.delete(cycleSession).where(eq(cycleSession.cycleId, input.cycleId));
-      await db.delete(cycleTopic).where(eq(cycleTopic.cycleId, input.cycleId));
+      await db.delete(cycleDiscipline).where(eq(cycleDiscipline.cycleId, input.cycleId));
       await db.delete(studyCycle).where(eq(studyCycle.id, input.cycleId));
 
       return { success: true };
-    }),
-
-  updateCycleProgress: protectedProcedure
-    .input(z.object({
-      cycleId: z.string(),
-      timeSessionId: z.string(),
-      actualDuration: z.number().min(0)
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-
-      // Verificar acesso ao ciclo
-      const cycleCheck = await db
-        .select()
-        .from(studyCycle)
-        .where(and(eq(studyCycle.id, input.cycleId), eq(studyCycle.userId, userId)))
-        .limit(1);
-
-      if (!cycleCheck.length) {
-        throw new Error("Cycle not found or access denied");
-      }
-
-      const ts = await db
-        .select({ id: timeSession.id, topicId: timeSession.topicId, userId: study.userId })
-        .from(timeSession)
-        .leftJoin(topic, eq(timeSession.topicId, topic.id))
-        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
-        .leftJoin(study, eq(discipline.studyId, study.id))
-        .where(eq(timeSession.id, input.timeSessionId))
-        .limit(1);
-
-      if (!ts.length || ts[0].userId !== userId) {
-        throw new Error("Time session not found or access denied");
-      }
-
-      const cs = await db
-        .select()
-        .from(cycleSession)
-        .where(and(
-          eq(cycleSession.cycleId, input.cycleId),
-          eq(cycleSession.topicId, ts[0].topicId),
-          eq(cycleSession.status, 'in_progress')
-        ))
-        .limit(1);
-
-      if (!cs.length) {
-        throw new Error("Cycle session not found");
-      }
-
-      // Atualizar sessão do ciclo
-      await db
-        .update(cycleSession)
-        .set({
-          status: 'completed',
-          actualDuration: input.actualDuration,
-          timeSessionId: input.timeSessionId,
-          updatedAt: new Date()
-        })
-        .where(eq(cycleSession.id, cs[0].id));
-
-      // Atualizar tempo do tópico no ciclo
-      await db
-        .update(cycleTopic)
-        .set({
-          completedTime: sql`${cycleTopic.completedTime} + ${input.actualDuration}`,
-          updatedAt: new Date()
-        })
-        .where(and(
-          eq(cycleTopic.cycleId, input.cycleId),
-          eq(cycleTopic.topicId, ts[0].topicId)
-        ));
-
-
-
-
-      return { success: true };
-    }),
-
-  startCycleSession: protectedProcedure
-    .input(z.object({
-      cycleSessionId: z.string()
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-
-      // Buscar sessão do ciclo e verificar acesso
-      const session = await db
-        .select({
-          id: cycleSession.id,
-          topicId: cycleSession.topicId,
-          cycleId: cycleSession.cycleId,
-          cycleName: studyCycle.name,
-          topicName: topic.name,
-          disciplineName: discipline.name
-        })
-        .from(cycleSession)
-        .leftJoin(studyCycle, eq(cycleSession.cycleId, studyCycle.id))
-        .leftJoin(topic, eq(cycleSession.topicId, topic.id))
-        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
-        .where(and(
-          eq(cycleSession.id, input.cycleSessionId),
-          eq(studyCycle.userId, userId),
-          eq(cycleSession.status, 'pending')
-        ))
-        .limit(1);
-
-      if (!session.length) {
-        throw new Error("Session not found or access denied");
-      }
-
-      // Atualizar status da sessão
-      await db
-        .update(cycleSession)
-        .set({
-          status: 'in_progress',
-          updatedAt: new Date()
-        })
-        .where(eq(cycleSession.id, input.cycleSessionId));
-
-      return session[0];
     }),
 
   getTopicsWithUsage: protectedProcedure
@@ -1484,65 +1209,84 @@ export const appRouter = router({
 
       return formattedTopics;
     }),
-});
 
-// Função auxiliar para gerar sessões do ciclo
-async function generateCycleSessions(cycleId: string, studyDays: number[], minDuration: number, maxDuration: number) {
-  const { randomUUID } = await import('crypto');
-  const today = new Date();
-  const sessions: { topicId: string; scheduledDate: Date; duration: number }[] = [];
+  getDisciplinesWithTopicCount: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
 
-  // Gerar sessões para as próximas 2 semanas
-  for (let weekOffset = 0; weekOffset < 2; weekOffset++) {
-    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      const currentDate = new Date(today);
-      currentDate.setDate(today.getDate() + (weekOffset * 7) + dayOffset);
-      const dayOfWeek = currentDate.getDay();
+      const disciplines = await db
+        .select({
+          id: discipline.id,
+          name: discipline.name,
+          studyId: discipline.studyId,
+          topicCount: count(topic.id),
+        })
+        .from(discipline)
+        .leftJoin(study, eq(discipline.studyId, study.id))
+        .leftJoin(topic, eq(discipline.id, topic.disciplineId))
+        .where(eq(study.userId, userId))
+        .groupBy(discipline.id, discipline.name, discipline.studyId)
+        .orderBy(desc(discipline.name));
 
-      if (studyDays.includes(dayOfWeek)) {
-        // Gerar 2-3 sessões por dia
-        const sessionsPerDay = Math.floor(Math.random() * 2) + 2;
-        for (let i = 0; i < sessionsPerDay; i++) {
-          const hour = 9 + (i * 3); // 9h, 12h, 15h
-          currentDate.setHours(hour, 0, 0, 0);
+      return disciplines;
+    }),
 
-          sessions.push({
-            topicId: '', // Será preenchido depois
-            scheduledDate: new Date(currentDate),
-            duration: Math.floor(Math.random() * (maxDuration - minDuration + 1)) + minDuration
-          });
-        }
+  getCycleWeeklyStudyTime: protectedProcedure
+    .input(z.object({ cycleId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      const cycleCheck = await db
+        .select()
+        .from(studyCycle)
+        .where(and(eq(studyCycle.id, input.cycleId), eq(studyCycle.userId, userId)))
+        .limit(1);
+
+      if (!cycleCheck.length) {
+        throw new Error("Cycle not found or access denied");
       }
-    }
-  }
 
-  // Buscar tópicos do ciclo e distribuir
-  const cycleTopics = await db
-    .select()
-    .from(cycleTopic)
-    .where(eq(cycleTopic.cycleId, cycleId))
-    .orderBy(desc(cycleTopic.priority));
+      const cycleDisciplines = await db
+        .select({ disciplineId: cycleDiscipline.disciplineId })
+        .from(cycleDiscipline)
+        .where(eq(cycleDiscipline.cycleId, input.cycleId));
 
-  if (cycleTopics.length === 0) return;
+      const disciplineIds = cycleDisciplines.map(cd => cd.disciplineId);
 
-  // Distribuir sessões entre tópicos baseado na prioridade
-  let topicIndex = 0;
-  for (const session of sessions) {
-    const selectedTopic = cycleTopics[topicIndex % cycleTopics.length];
+      if (disciplineIds.length === 0) {
+        return { totalTime: 0 };
+      }
 
-    await db
-      .insert(cycleSession)
-      .values({
-        id: randomUUID(),
-        cycleId,
-        topicId: selectedTopic.topicId,
-        scheduledDate: session.scheduledDate,
-        duration: session.duration,
-        status: 'pending'
-      });
+      const topicsInCycle = await db
+        .select({ topicId: topic.id })
+        .from(topic)
+        .where(inArray(topic.disciplineId, disciplineIds));
 
-    topicIndex++;
-  }
-}
+      const topicIds = topicsInCycle.map(t => t.topicId);
+
+      if (topicIds.length === 0) {
+        return { totalTime: 0 };
+      }
+
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const weeklyTime = await db
+        .select({
+          totalTime: sql<number>`COALESCE(SUM(${timeSession.duration}), 0)`.mapWith(Number),
+        })
+        .from(timeSession)
+        .where(and(
+          inArray(timeSession.topicId, topicIds),
+          gte(timeSession.startTime, startOfWeek)
+        ));
+
+      return { totalTime: weeklyTime[0]?.totalTime || 0 };
+    }),
+});
 
 export type AppRouter = typeof appRouter;
