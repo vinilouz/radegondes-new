@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
-import { BookOpen, Home, BarChart3, Menu, Calendar } from "lucide-react";
+import { BookOpen, Home, BarChart3, Menu, Calendar, Target } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 
@@ -15,6 +15,7 @@ export default function Header() {
 
 	const protectedLinks = [
 		{ to: "/planos", label: "Meu Plano", icon: BookOpen },
+		{ to: "/planejamento", label: "Planejamento", icon: Target },
 		{ to: "/revisoes", label: "Revisões", icon: Calendar },
 		{ to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
 	] as const;
@@ -47,18 +48,18 @@ export default function Header() {
 
 				{/* Navegação Desktop */}
 				{session && (
-					<nav className="hidden md:flex items-center gap-6">
+					<nav className="hidden md:flex items-center gap-4 md:gap-6">
 						{links.map(({ to, label, icon: Icon }) => (
 							<Link
 								key={to}
 								to={to}
-								className="flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors rounded-md hover:text-primary hover:bg-accent"
+								className="flex items-center gap-1 px-2 py-2 text-xs md:text-sm md:gap-2 md:px-3 font-medium transition-colors rounded-md hover:text-primary hover:bg-accent"
 								activeProps={{
 									className: "text-primary bg-accent"
 								}}
 							>
 								<Icon className="h-4 w-4" />
-								{label}
+								<span className="hidden md:inline">{label}</span>
 							</Link>
 						))}
 					</nav>

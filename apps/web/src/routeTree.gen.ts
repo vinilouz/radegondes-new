@@ -14,6 +14,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProtectedRevisoesRouteImport } from './routes/_protected/revisoes'
+import { Route as ProtectedPlanejamentoRouteImport } from './routes/_protected/planejamento'
 import { Route as ProtectedEstatisticasRouteImport } from './routes/_protected/estatisticas'
 import { Route as ProtectedPlanosIndexRouteImport } from './routes/_protected/planos/index'
 import { Route as ProtectedPlanosStudyIdIndexRouteImport } from './routes/_protected/planos/$studyId/index'
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
 const ProtectedRevisoesRoute = ProtectedRevisoesRouteImport.update({
   id: '/revisoes',
   path: '/revisoes',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedPlanejamentoRoute = ProtectedPlanejamentoRouteImport.update({
+  id: '/planejamento',
+  path: '/planejamento',
   getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedEstatisticasRoute = ProtectedEstatisticasRouteImport.update({
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/estatisticas': typeof ProtectedEstatisticasRoute
+  '/planejamento': typeof ProtectedPlanejamentoRoute
   '/revisoes': typeof ProtectedRevisoesRoute
   '/planos': typeof ProtectedPlanosIndexRoute
   '/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/estatisticas': typeof ProtectedEstatisticasRoute
+  '/planejamento': typeof ProtectedPlanejamentoRoute
   '/revisoes': typeof ProtectedRevisoesRoute
   '/planos': typeof ProtectedPlanosIndexRoute
   '/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/_protected/estatisticas': typeof ProtectedEstatisticasRoute
+  '/_protected/planejamento': typeof ProtectedPlanejamentoRoute
   '/_protected/revisoes': typeof ProtectedRevisoesRoute
   '/_protected/planos/': typeof ProtectedPlanosIndexRoute
   '/_protected/planos/$studyId/$disciplineId': typeof ProtectedPlanosStudyIdDisciplineIdRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/estatisticas'
+    | '/planejamento'
     | '/revisoes'
     | '/planos'
     | '/planos/$studyId/$disciplineId'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/estatisticas'
+    | '/planejamento'
     | '/revisoes'
     | '/planos'
     | '/planos/$studyId/$disciplineId'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/_protected/estatisticas'
+    | '/_protected/planejamento'
     | '/_protected/revisoes'
     | '/_protected/planos/'
     | '/_protected/planos/$studyId/$disciplineId'
@@ -176,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedRevisoesRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/planejamento': {
+      id: '/_protected/planejamento'
+      path: '/planejamento'
+      fullPath: '/planejamento'
+      preLoaderRoute: typeof ProtectedPlanejamentoRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/estatisticas': {
       id: '/_protected/estatisticas'
       path: '/estatisticas'
@@ -209,6 +228,7 @@ declare module '@tanstack/react-router' {
 
 interface ProtectedRouteChildren {
   ProtectedEstatisticasRoute: typeof ProtectedEstatisticasRoute
+  ProtectedPlanejamentoRoute: typeof ProtectedPlanejamentoRoute
   ProtectedRevisoesRoute: typeof ProtectedRevisoesRoute
   ProtectedPlanosIndexRoute: typeof ProtectedPlanosIndexRoute
   ProtectedPlanosStudyIdDisciplineIdRoute: typeof ProtectedPlanosStudyIdDisciplineIdRoute
@@ -217,6 +237,7 @@ interface ProtectedRouteChildren {
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedEstatisticasRoute: ProtectedEstatisticasRoute,
+  ProtectedPlanejamentoRoute: ProtectedPlanejamentoRoute,
   ProtectedRevisoesRoute: ProtectedRevisoesRoute,
   ProtectedPlanosIndexRoute: ProtectedPlanosIndexRoute,
   ProtectedPlanosStudyIdDisciplineIdRoute:

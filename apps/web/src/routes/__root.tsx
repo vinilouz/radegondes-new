@@ -14,6 +14,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { StudyTimerRuntime } from "@/components/StudyTimerRuntime";
 import { StudyTimerWidget } from "@/components/StudyTimerWidget";
+import { CycleTimerRuntime } from "@/components/CycleTimerRuntime";
 import "../index.css";
 import { TimerDiagnostics } from "@/components/TimerDiagnostics";
 
@@ -80,6 +81,7 @@ function RootComponent() {
 			<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
       <StudyTimerRuntime />
       <StudyTimerWidget />
+      <CycleTimerRuntime />
       {/* {import.meta.env.DEV && <TimerDiagnostics />} */}
 		</>
 	);

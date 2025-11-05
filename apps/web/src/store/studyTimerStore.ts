@@ -1,5 +1,6 @@
 import { Store } from '@tanstack/react-store'
 import { trpcClient } from '@/utils/trpc'
+import { cycleActions } from './cycleStore'
 
 const SESSION_KEY = 'timer_session_v2'
 
@@ -81,7 +82,14 @@ export const timerActions = {
         sessionId: session.sessionId,
         duration: duration
       })
-      
+
+      // Atualiza progresso do ciclo se aplicável
+      try {
+        await cycleActions.updateProgress(session.sessionId, duration)
+      } catch (cycleError) {
+        console.warn('Could not update cycle progress:', cycleError)
+      }
+
       // Atualiza totais locais imediatamente
       studyTimerStore.setState(s => ({
         ...s,
@@ -91,10 +99,10 @@ export const timerActions = {
         },
         activeSession: null
       }))
-      
+
       // Limpa localStorage
       localStorage.removeItem(SESSION_KEY)
-      
+
       console.log('Session stopped successfully')
     } catch (error) {
       console.error('Error stopping session:', error)

@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "cmd",
+      "args": ["/c", "npx", "shadcn@latest", "mcp"]
+    },
+    "context7": {
+      "command": "bunx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "remotion-documentation": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@remotion/mcp@latest"
+      ]
+    },
+    "chrome-devtools": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "chrome-devtools-mcp@latest"
+      ]
+    },
+    "kibo-ui": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "mcp-remote",
+        "https://www.kibo-ui.com/api/mcp/mcp"
+      ]
+    }
+  }
+}
