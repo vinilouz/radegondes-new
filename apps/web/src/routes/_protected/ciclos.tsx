@@ -3,10 +3,12 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { trpc, trpcClient } from '@/utils/trpc';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Target, Plus, Edit, Trash2, BookOpen, Clock } from 'lucide-react';
-import { useState } from 'react';
+import { Target, Plus, Edit, Trash2, BookOpen, Clock, BarChart3, HelpCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { CreateCycleModal } from '@/components/planning/CreateCycleModal';
 import { Badge } from '@/components/ui/badge';
+import { calculateStudyTimeDistribution } from '@/lib/studyCalculations';
+import { Progress } from '@/components/ui/progress';
 
 export const Route = createFileRoute('/_protected/ciclos')({
   component: PlanejamentoPage,
@@ -39,6 +41,21 @@ function PlanejamentoPage() {
   const disciplines = cycleDetailsQuery.data?.disciplines || [];
   const totalDisciplines = disciplines.length;
 
+
+
+  const studyTimeCalculation = disciplines.length > 0 ? calculateStudyTimeDistribution(
+    disciplines.map(d => ({
+      id: d.disciplineId,
+      name: d.disciplineName,
+      topicCount: d.topicCount || 0,
+      importance: d.importance || 3,
+      knowledge: d.knowledge || 3,
+    })),
+    activeCycle?.hoursPerWeek || 10
+  ) : null;
+
+
+
   const weeklyStudyQuery = useQuery({
     ...trpc.getCycleWeeklyStudyTime.queryOptions({ cycleId: activeCycle?.id || '' }),
     enabled: !!activeCycle,
@@ -47,6 +64,10 @@ function PlanejamentoPage() {
   const weeklyStudiedHours = (weeklyStudyQuery.data?.totalTime || 0) / (1000 * 60 * 60);
   const weeklyGoalHours = activeCycle?.hoursPerWeek || 0;
   const weeklyProgress = weeklyGoalHours > 0 ? Math.min((weeklyStudiedHours / weeklyGoalHours) * 100, 100) : 0;
+
+  const [hoveredDiscipline, setHoveredDiscipline] = useState<string | null>(null);
+
+
 
   if (cyclesQuery.isLoading) {
     return (
@@ -189,44 +210,61 @@ function PlanejamentoPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-4">Disciplinas</h3>
                 <div className="space-y-3">
-                  {disciplines.map((discipline) => (
-                    <Card
-                      key={discipline.id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => navigate({
-                        to: '/planos/$studyId/$disciplineId',
-                        params: {
-                          studyId: discipline.studyId,
-                          disciplineId: discipline.disciplineId
-                        }
-                      })}
-                    >
-                      <CardContent>
-                        <div>
-                          <h4 className="font-semibold text-base">{discipline.disciplineName || 'Sem nome'}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {discipline.topicCount || 0} tópico{discipline.topicCount !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {disciplines.map((discipline) => {
+                    const disciplineCalc = studyTimeCalculation?.disciplines.find(d => d.id === discipline.disciplineId);
+                    return (
+                      <Card
+                        key={discipline.id}
+                        className="hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => navigate({
+                          to: '/planos/$studyId/$disciplineId',
+                          params: {
+                            studyId: discipline.studyId,
+                            disciplineId: discipline.disciplineId
+                          }
+                        })}
+                      >
+                        <CardContent>
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="font-semibold text-base">{discipline.disciplineName || 'Sem nome'}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {discipline.topicCount || 0} tópico{discipline.topicCount !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                              {disciplineCalc && (
+                                <div className="text-right">
+                                  <div className="text-lg font-bold">{disciplineCalc.estimatedHours}h</div>
+                                  <div className="text-xs text-muted-foreground">por semana</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
 
               <Card>
-                <CardHeader>
-                  <CardTitle>Distribuição por Disciplina</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative w-full aspect-square max-w-sm mx-auto">
-                    <svg viewBox="0 0 200 200" className="w-full h-full">
-                      {(() => {
+                <CardContent className="pt-6">
+                  <div className="relative w-full aspect-square max-w-sm mx-auto group">
+                    {hoveredDiscipline && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <div className="bg-background border rounded-lg px-3 py-2 shadow-lg">
+                          <div className="font-medium text-sm">{hoveredDiscipline}</div>
+                        </div>
+                      </div>
+                    )}
+                    <svg viewBox="0 0 200 200" className="w-full h-full" onMouseLeave={() => setHoveredDiscipline(null)}>
+                      {studyTimeCalculation && (() => {
                         let currentAngle = -90;
                         const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
 
-                        return disciplines.map((discipline, index) => {
-                          const percentage = 100 / totalDisciplines;
+                        return studyTimeCalculation.disciplines.map((discipline, index) => {
+                          const percentage = discipline.percentage;
                           const angle = (percentage / 100) * 360;
                           const startAngle = currentAngle;
                           const endAngle = currentAngle + angle;
@@ -263,7 +301,8 @@ function PlanejamentoPage() {
                               key={discipline.id}
                               d={pathData}
                               fill={colors[index % colors.length]}
-                              opacity={0.8}
+                              className="opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                              onMouseEnter={() => setHoveredDiscipline(`${discipline.name}: ${percentage}% (${discipline.estimatedHours}h)`)}
                             />
                           );
                         });
@@ -272,9 +311,8 @@ function PlanejamentoPage() {
                   </div>
 
                   <div className="mt-6 space-y-2">
-                    {disciplines.map((discipline, index) => {
+                    {studyTimeCalculation && studyTimeCalculation.disciplines.map((discipline, index) => {
                       const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
-                      const percentage = Math.round(100 / totalDisciplines);
 
                       return (
                         <div key={discipline.id} className="flex items-center justify-between text-sm">
@@ -283,9 +321,9 @@ function PlanejamentoPage() {
                               className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: colors[index % colors.length] }}
                             />
-                            <span className="truncate">{discipline.disciplineName}</span>
+                            <span className="truncate">{discipline.name}</span>
                           </div>
-                          <span className="font-medium">{percentage}%</span>
+                          <span className="font-medium">{discipline.percentage}%</span>
                         </div>
                       );
                     })}

@@ -1136,7 +1136,7 @@ export const appRouter = router({
 
       const cycleDisciplines = await db
         .select({
-          id: cycleDiscipline.id,
+          id: cycleDiscipline.disciplineId,
           disciplineId: cycleDiscipline.disciplineId,
           studyId: discipline.studyId,
           importance: cycleDiscipline.importance,
@@ -1148,7 +1148,7 @@ export const appRouter = router({
         .leftJoin(discipline, eq(cycleDiscipline.disciplineId, discipline.id))
         .leftJoin(topic, eq(discipline.id, topic.disciplineId))
         .where(eq(cycleDiscipline.cycleId, input.cycleId))
-        .groupBy(cycleDiscipline.id, cycleDiscipline.disciplineId, discipline.studyId, cycleDiscipline.importance,
+        .groupBy(cycleDiscipline.disciplineId, discipline.studyId, cycleDiscipline.importance,
                 cycleDiscipline.knowledge, discipline.name);
 
       return {
