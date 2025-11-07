@@ -383,7 +383,16 @@ function DisciplinePage() {
 
   const handleCreateTopic = () => {
     if (!newTopicName.trim()) return;
-    createTopicMutation.mutate({ disciplineId: discipline.id, name: newTopicName });
+
+    const topicLines = newTopicName.split('\n').filter(line => line.trim());
+
+    topicLines.forEach(topicName => {
+      if (topicName.trim()) {
+        createTopicMutation.mutate({ disciplineId: discipline.id, name: topicName.trim() });
+      }
+    });
+
+    setNewTopicName('');
   };
 
   const handleUpdateTopicDetails = () => {
@@ -571,7 +580,7 @@ function DisciplinePage() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold">Lista de Tópicos</CardTitle>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
-            <Input placeholder="Adicionar novo tópico... (ex: PDF 1 Radegondes)" value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTopic() }} className="flex-1" />
+            <Textarea placeholder="Adicionar novo tópico... (ex: PDF 1 Radegondes)&#10;Um tópico por linha para adicionar múltiplos" value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCreateTopic(); } }} className="flex-1 min-h-[2.5rem] resize-none" />
             <Button onClick={handleCreateTopic} disabled={createTopicMutation.isPending || topicsQuery.isLoading} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
           </div>
         </CardHeader>
