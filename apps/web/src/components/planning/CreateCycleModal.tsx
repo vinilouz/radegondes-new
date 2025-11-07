@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Accordion } from '@/components/ui/accordion';
-import { Target, ChevronRight, ChevronLeft, Plus, BookOpen, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Target, ChevronRight, ChevronLeft, Plus, BookOpen, CheckCircle2, ArrowRight, Clock, Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CreateCycleModalProps {
   isOpen: boolean;
@@ -160,6 +161,8 @@ export function CreateCycleModal({ isOpen, onClose, onSuccess, existingCycle }: 
       case 1:
         return selectedDisciplines.length > 0;
       case 2:
+        return hoursPerWeek > 0;
+      case 3:
         return selectedDisciplines.every(d => d.importance >= 1 && d.importance <= 5 && d.knowledge >= 1 && d.knowledge <= 5);
       default:
         return false;
@@ -174,13 +177,14 @@ export function CreateCycleModal({ isOpen, onClose, onSuccess, existingCycle }: 
         </DialogHeader>
 
         <div className="space-y-3 py-4 border-b">
-          <Progress value={(currentStep / 2) * 100} className="h-2" />
+          <Progress value={(currentStep / 3) * 100} className="h-2" />
 
           <div className="flex items-center justify-between">
             {[
               { id: 1, title: "Disciplinas", description: "Selecione as disciplinas", icon: BookOpen },
-              { id: 2, title: "Relevância", description: "Defina importância e conhecimento", icon: Target }
-            ].map((step, index) => (
+              { id: 2, title: "Disponibilidade", description: "Defina horas semanais", icon: Clock },
+              { id: 3, title: "Relevância", description: "Ajuste importância e conhecimento", icon: Target }
+            ].map((step, index, steps) => (
               <div key={step.id} className="flex items-center space-x-3 flex-1">
                 <div className="flex flex-col items-center space-y-2">
                   <div
@@ -205,7 +209,7 @@ export function CreateCycleModal({ isOpen, onClose, onSuccess, existingCycle }: 
                     </p>
                   </div>
                 </div>
-                {index < 1 && (
+                {index < steps.length - 1 && (
                   <ArrowRight className={`h-4 w-4 flex-shrink-0 mx-2 ${currentStep > step.id ? 'text-primary' : 'text-muted-foreground/30'
                     }`} />
                 )}
@@ -214,7 +218,7 @@ export function CreateCycleModal({ isOpen, onClose, onSuccess, existingCycle }: 
           </div>
         </div>
 
-        <div className='flex-1 overflow-y-auto py-4'>
+        <div className='flex-1 py-4 h-100 overflow-y-auto'>
 
           {currentStep === 1 && (
             <div className="space-y-6">
@@ -265,11 +269,7 @@ export function CreateCycleModal({ isOpen, onClose, onSuccess, existingCycle }: 
                                 <span>{discipline.topicCount || 0} tópico{discipline.topicCount !== 1 ? 's' : ''}</span>
                               </div>
                             </div>
-                            <Checkbox
-                              checked={!!isSelected}
-                              className="shrink-0 ml-2"
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                            
                           </div>
                         </CardContent>
                       </Card>
@@ -295,93 +295,98 @@ export function CreateCycleModal({ isOpen, onClose, onSuccess, existingCycle }: 
                 <CardContent className="px-3 py-5">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Target className="h-6 w-6 text-primary" />
+                      <Clock className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold mb-2">Defina a Relevância</h3>
-                      <p className="text-muted-foreground mb-3">
-                        Configure a importância e seu nível de conhecimento para cada disciplina.
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                          <span><strong>Importância:</strong> Quão crucial é esta disciplina</span>
+                      <h3 className="text-lg font-semibold mb-2">Disponibilidade de Tempo</h3>
+                      <p className="text-muted-foreground mb-4">Quantas horas semanais você pode estudar?</p>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Horas por semana</Label>
+                          <Badge variant="secondary" className="text-xs">{hoursPerWeek}h</Badge>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                          <span><strong>Conhecimento:</strong> Seu nível atual de domínio</span>
+                        <Slider
+                          value={[hoursPerWeek]}
+                          onValueChange={([value]) => setHoursPerWeek(value)}
+                          min={1}
+                          max={40}
+                          step={1}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground px-1">
+                          <span>1h</span>
+                          <span>40h</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
 
-              <div className="space-y-6">
-                {selectedDisciplines.map((discipline) => (
-                  <Card key={discipline.disciplineId} className="overflow-hidden">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-base">{discipline.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {discipline.topicCount} tópico{discipline.topicCount !== 1 ? 's' : ''}
-                          </p>
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <Card className="p-0">
+                <CardContent className="px-3 py-4">
+                  <div className="mb-3">
+                    <h3 className="text-lg font-semibold">Relevância por Disciplina</h3>
+                    <p className="text-xs text-muted-foreground">Ajuste rapidamente importância e conhecimento.</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
+                    {selectedDisciplines.map((discipline) => (
+                      <div key={discipline.disciplineId} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium truncate">{discipline.name}</div>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1 cursor-help">
+                                  <span className="text-xs text-muted-foreground">Déficit:</span>
+                                  <Badge variant="outline" className="text-xs">{discipline.importance * (6 - discipline.knowledge)}</Badge>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">Pontuação que indica prioridade de estudo baseada na importância × falta de conhecimento</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Importância</span>
+                              <Badge variant="secondary" className="text-xs">{discipline.importance}/5</Badge>
+                            </div>
+                            <Slider
+                              value={[discipline.importance]}
+                              onValueChange={([value]) => handleDisciplineImportanceChange(discipline.disciplineId, value)}
+                              min={1}
+                              max={5}
+                              step={1}
+                              className="w-full"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Conhecimento</span>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0.5">{discipline.knowledge}/5</Badge>
+                            </div>
+                            <Slider
+                              value={[discipline.knowledge]}
+                              onValueChange={([value]) => handleDisciplineKnowledgeChange(discipline.disciplineId, value)}
+                              min={1}
+                              max={5}
+                              step={1}
+                              className="w-full"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-sm font-medium">Importância</Label>
-                            <div className="ml-auto">
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs px-2 py-0">
-                                {discipline.importance}/5
-                              </Badge>
-                            </div>
-                          </div>
-                          <Slider
-                            value={[discipline.importance]}
-                            onValueChange={([value]) => handleDisciplineImportanceChange(discipline.disciplineId, value)}
-                            min={1}
-                            max={5}
-                            step={1}
-                            className="w-full"
-                          />
-                          <div className="flex justify-between text-xs text-muted-foreground px-1">
-                            <span>Baixa</span>
-                            <span>Alta</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-sm font-medium">Conhecimento</Label>
-                            <div className="ml-auto">
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs px-2 py-0">
-                                {discipline.knowledge}/5
-                              </Badge>
-                            </div>
-                          </div>
-                          <Slider
-                            value={[discipline.knowledge]}
-                            onValueChange={([value]) => handleDisciplineKnowledgeChange(discipline.disciplineId, value)}
-                            min={1}
-                            max={5}
-                            step={1}
-                            className="w-full"
-                          />
-                          <div className="flex justify-between text-xs text-muted-foreground px-1">
-                            <span>Iniciante</span>
-                            <span>Avançado</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
@@ -409,7 +414,7 @@ export function CreateCycleModal({ isOpen, onClose, onSuccess, existingCycle }: 
               Cancelar
             </Button>
 
-            {currentStep < 2 ? (
+            {currentStep < 3 ? (
               <Button
                 onClick={() => setCurrentStep(currentStep + 1)}
                 disabled={!canProceed()}

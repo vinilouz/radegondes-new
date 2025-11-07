@@ -9,6 +9,7 @@ import { CreateCycleModal } from '@/components/planning/CreateCycleModal';
 import { Badge } from '@/components/ui/badge';
 import { calculateStudyTimeDistribution } from '@/lib/studyCalculations';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export const Route = createFileRoute('/_protected/ciclos')({
   component: PlanejamentoPage,
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/_protected/ciclos')({
 function PlanejamentoPage() {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const cyclesQuery = useQuery({
     ...trpc.getCycles.queryOptions(),
@@ -26,8 +28,15 @@ function PlanejamentoPage() {
     mutationFn: (cycleId: string) => trpcClient.deleteCycle.mutate({ cycleId }),
     onSuccess: () => {
       cyclesQuery.refetch();
+      setIsDeleteDialogOpen(false);
     },
   });
+
+  const handleDeleteCycle = () => {
+    if (activeCycle) {
+      deleteCycleMutation.mutate(activeCycle.id);
+    }
+  };
 
   const cycles = cyclesQuery.data || [];
   const activeCycle = cycles.length > 0 ? cycles[0] : null;
@@ -46,7 +55,7 @@ function PlanejamentoPage() {
   const studyTimeCalculation = disciplines.length > 0 ? calculateStudyTimeDistribution(
     disciplines.map(d => ({
       id: d.disciplineId,
-      name: d.disciplineName,
+      name: d.disciplineName || 'Sem nome',
       topicCount: d.topicCount || 0,
       importance: d.importance || 3,
       knowledge: d.knowledge || 3,
@@ -83,7 +92,7 @@ function PlanejamentoPage() {
     <div className="container mx-auto">
       <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Planejamento de Estudos</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Ciclo de Estudos</h1>
           <p className="text-muted-foreground mt-2">
             {hasCycles
               ? "Visualize e gerencie seu ciclo de estudos"
@@ -101,15 +110,41 @@ function PlanejamentoPage() {
               <Edit className="h-4 w-4" />
               Editar Ciclo
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => activeCycle && deleteCycleMutation.mutate(activeCycle.id)}
-              disabled={deleteCycleMutation.isPending}
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Excluir Plano
-            </Button>
+          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={deleteCycleMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir Ciclo
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Confirmar Exclusão</DialogTitle>
+                  <DialogDescription>
+                    Tem certeza que deseja excluir este ciclo de estudos? Esta ação não pode ser desfeita.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDeleteDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteCycle}
+                    disabled={deleteCycleMutation.isPending}
+                  >
+                    {deleteCycleMutation.isPending ? 'Excluindo...' : 'Excluir Ciclo'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </div>
@@ -124,7 +159,7 @@ function PlanejamentoPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <h2 className="text-2xl font-bold">Comece seu Planejamento de Estudos</h2>
+                  <h2 className="text-2xl font-bold">Comece seu Ciclo de Estudos</h2>
                   <p className="text-muted-foreground max-w-md mx-auto">
                     Crie ciclos de estudo organizados por disciplinas, definindo prioridades
                     e acompanhando sua jornada de aprendizado.
@@ -148,8 +183,6 @@ function PlanejamentoPage() {
       {hasCycles && activeCycle && (
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold mb-4">{activeCycle.name}</h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <Card className="flex flex-row items-center p-4">
                 <div className="mr-4">
@@ -230,13 +263,13 @@ function PlanejamentoPage() {
                               <div>
                                 <h4 className="font-semibold text-base">{discipline.disciplineName || 'Sem nome'}</h4>
                                 <p className="text-sm text-muted-foreground">
-                                  {discipline.topicCount || 0} tópico{discipline.topicCount !== 1 ? 's' : ''}
+                                  Déficit: {discipline.importance * (6 - discipline.knowledge)}
                                 </p>
                               </div>
                               {disciplineCalc && (
                                 <div className="text-right">
-                                  <div className="text-lg font-bold">{disciplineCalc.estimatedHours}h</div>
-                                  <div className="text-xs text-muted-foreground">por semana</div>
+                                  <div className="text-lg font-bold">{Math.floor(disciplineCalc.estimatedHours)}h {Math.round((disciplineCalc.estimatedHours % 1) * 60)}min</div>
+                                  <div className="text-xs text-muted-foreground">por dia</div>
                                 </div>
                               )}
                             </div>

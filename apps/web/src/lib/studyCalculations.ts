@@ -7,7 +7,8 @@ export interface DisciplineWithScores {
 }
 
 export interface CalculatedDiscipline extends DisciplineWithScores {
-  score: number;
+  // O 'score' agora representa o Fator de Prioridade.
+  score: number; 
   estimatedHours: number;
   percentage: number;
 }
@@ -17,22 +18,15 @@ export interface StudyCalculationResult {
   totalHours: number;
 }
 
-const IMPORTANCE_WEIGHT = 0.6;
-const KNOWLEDGE_WEIGHT = 0.4;
-const MAX_IMPORTANCE_KNOWLEDGE_SCORE = 5;
-const WEIGHT_VARIATION = 0.5;
+// Constantes relevantes para o novo cálculo
+const KNOWLEDGE_SCALE_INVERSE = 6; // Usado para inverter a pontuação de conhecimento (6 - knowledge)
+const FLOOR_PERCENTAGE = 0.6; // 60% do tempo médio é o piso garantido
 
-function calculateDisciplineScore(importance: number, knowledge: number): number {
-  const normalizedImportance = (importance - 1) / (MAX_IMPORTANCE_KNOWLEDGE_SCORE - 1);
-  const normalizedKnowledge = (MAX_IMPORTANCE_KNOWLEDGE_SCORE - knowledge) / (MAX_IMPORTANCE_KNOWLEDGE_SCORE - 1);
-  
-  return (normalizedImportance * IMPORTANCE_WEIGHT) + (normalizedKnowledge * KNOWLEDGE_WEIGHT);
-}
-
-function calculateWeightMultiplier(score: number): number {
-  return 1 + ((score - 0.5) * WEIGHT_VARIATION);
-}
-
+/**
+ * Calcula a distribuição de tempo de estudo usando o método de piso dinâmico.
+ * 1. Garante um tempo mínimo para todas as disciplinas (60% do tempo médio).
+ * 2. Distribui o tempo restante com base em um Fator de Prioridade.
+ */
 export function calculateStudyTimeDistribution(
   disciplines: DisciplineWithScores[],
   totalAvailableHours: number
@@ -41,44 +35,60 @@ export function calculateStudyTimeDistribution(
     return { disciplines: [], totalHours: 0 };
   }
 
-  const baseHoursPerDiscipline = totalAvailableHours / disciplines.length;
+  // --- PASSO 1: Calcular o piso dinâmico e o tempo restante ---
+  const numeroDisciplinas = disciplines.length;
+  const tempoMedio = totalAvailableHours / numeroDisciplinas;
+  const tempoMinimoPorDisciplina = tempoMedio * FLOOR_PERCENTAGE;
+  const tempoBaseTotal = tempoMinimoPorDisciplina * numeroDisciplinas;
+  const tempoRestante = totalAvailableHours - tempoBaseTotal;
 
-  const disciplinesWithScores = disciplines.map(discipline => {
-    const score = calculateDisciplineScore(discipline.importance, discipline.knowledge);
-    const weightMultiplier = calculateWeightMultiplier(score);
-    const adjustedHours = baseHoursPerDiscipline * weightMultiplier;
+  // --- PASSO 2: Calcular o Fator de Prioridade para cada disciplina ---
+  const factors = disciplines.map(d => {
+    // Inverte o conhecimento: 1 (baixo) se torna 5 (alta necessidade), 5 se torna 1.
+    const deficitConhecimento = KNOWLEDGE_SCALE_INVERSE - d.knowledge;
+    const fatorPrioridade = d.importance * deficitConhecimento;
+    return { id: d.id, fator: fatorPrioridade };
+  });
+
+  // Soma de todos os fatores para o cálculo proporcional
+  const somaFatores = factors.reduce((sum, f) => sum + f.fator, 0);
+
+  // --- PASSO 3: Distribuir o tempo restante e calcular o tempo final ---
+  const finalDisciplines = disciplines.map(d => {
+    const fatorInfo = factors.find(f => f.id === d.id);
+    const fator = fatorInfo ? fatorInfo.fator : 0;
+
+    // Apenas distribui se houver fatores de prioridade
+    const tempoAdicional = somaFatores > 0 ? (fator / somaFatores) * tempoRestante : 0;
+    
+    const tempoFinal = tempoMinimoPorDisciplina + tempoAdicional;
+
+    // Arredondamento para melhor exibição
+    const estimatedHours = Math.round(tempoFinal * 10) / 10;
+    const percentage = Math.round((tempoFinal / totalAvailableHours) * 100);
     
     return {
-      ...discipline,
-      score: Math.round(score * 100) / 100,
-      estimatedHours: Math.round(adjustedHours * 10) / 10,
-      percentage: 0,
+      ...d,
+      score: Math.round(fator * 100) / 100, // O 'score' é o Fator de Prioridade
+      estimatedHours,
+      percentage,
     };
   });
 
-  const totalEstimatedHours = disciplinesWithScores.reduce((sum, d) => sum + d.estimatedHours, 0);
-  const scaleFactor = totalAvailableHours / totalEstimatedHours;
-  
-  const finalDisciplines = disciplinesWithScores.map(discipline => ({
-    ...discipline,
-    estimatedHours: Math.round(discipline.estimatedHours * scaleFactor * 10) / 10,
-    percentage: Math.round((discipline.estimatedHours / totalEstimatedHours) * 100),
-  }));
-
-  const adjustedTotalHours = finalDisciplines.reduce((sum, d) => sum + d.estimatedHours, 0);
-
   return {
-    disciplines: finalDisciplines,
-    totalHours: Math.round(adjustedTotalHours * 10) / 10,
+    disciplines: finalDisciplines.sort((a, b) => b.estimatedHours - a.estimatedHours), // Ordena do maior para o menor
+    totalHours: Math.round(totalAvailableHours * 10) / 10,
   };
 }
 
+// --- Funções Auxiliares (mantidas e ajustadas) ---
+
 export function getScoreExplanation(score: number): string {
-  if (score >= 0.8) return "Prioridade máxima - requer mais tempo";
-  if (score >= 0.6) return "Alta prioridade - tempo significativo";
-  if (score >= 0.4) return "Prioridade média - tempo moderado";
-  if (score >= 0.2) return "Baixa prioridade - tempo reduzido";
-  return "Prioridade mínima - tempo mínimo";
+  // Ajustado para a nova escala de Fator de Prioridade (que pode ir de 0 a 25)
+  if (score >= 15) return "Prioridade máxima - foco principal";
+  if (score >= 10) return "Alta prioridade - tempo significativo";
+  if (score >= 5) return "Prioridade média - tempo moderado";
+  return "Prioridade de revisão - tempo de manutenção";
 }
 
 export function getKnowledgeLevelDescription(knowledge: number): string {
@@ -99,39 +109,42 @@ export function getImportanceLevelDescription(importance: number): string {
     case 3: return "Média";
     case 4: return "Alta";
     case 5: return "Muito Alta";
-    default: return "Desconhecida";
+    default: "Desconhecida";
   }
 }
 
+// --- Funções de Explicação do Cálculo (Atualizadas) ---
+
 export function getCalculationSteps(discipline: DisciplineWithScores, totalAvailableHours: number, allDisciplines: DisciplineWithScores[]): string[] {
-  const baseHoursPerDiscipline = totalAvailableHours / allDisciplines.length;
-  const score = calculateDisciplineScore(discipline.importance, discipline.knowledge);
-  const weightMultiplier = calculateWeightMultiplier(score);
-  const adjustedHours = baseHoursPerDiscipline * weightMultiplier;
-  
-  const allAdjustedHours = allDisciplines.map(d => {
-    const s = calculateDisciplineScore(d.importance, d.knowledge);
-    const wm = calculateWeightMultiplier(s);
-    return baseHoursPerDiscipline * wm;
-  });
-  const totalAdjusted = allAdjustedHours.reduce((sum, h) => sum + h, 0);
-  const scaleFactor = totalAvailableHours / totalAdjusted;
-  const finalHours = adjustedHours * scaleFactor;
-  
+  const numeroDisciplinas = allDisciplines.length;
+  const tempoMedio = totalAvailableHours / numeroDisciplinas;
+  const tempoMinimo = tempoMedio * FLOOR_PERCENTAGE;
+  const tempoRestante = totalAvailableHours - (tempoMinimo * numeroDisciplinas);
+
+  const deficit = KNOWLEDGE_SCALE_INVERSE - discipline.knowledge;
+  const fatorPrioridade = discipline.importance * deficit;
+
+  const somaFatores = allDisciplines.reduce((sum, d) => {
+    return sum + (d.importance * (KNOWLEDGE_SCALE_INVERSE - d.knowledge));
+  }, 0);
+
+  const tempoAdicional = somaFatores > 0 ? (fatorPrioridade / somaFatores) * tempoRestante : 0;
+  const tempoFinal = tempoMinimo + tempoAdicional;
+
   return [
-    `Horas base: ${totalAvailableHours}h ÷ ${allDisciplines.length} = ${baseHoursPerDiscipline.toFixed(2)}h`,
-    `Pontuação: (${discipline.importance} × ${IMPORTANCE_WEIGHT} + (${MAX_IMPORTANCE_KNOWLEDGE_SCORE} - ${discipline.knowledge}) × ${KNOWLEDGE_WEIGHT}) = ${score.toFixed(2)}`,
-    `Multiplicador: 1 + (${score.toFixed(2)} - 0.5) × ${WEIGHT_VARIATION} = ${weightMultiplier.toFixed(2)}`,
-    `Horas ajustadas: ${baseHoursPerDiscipline.toFixed(2)}h × ${weightMultiplier.toFixed(2)} = ${adjustedHours.toFixed(2)}h`,
-    `Fator de escala: ${totalAvailableHours}h ÷ ${totalAdjusted.toFixed(2)}h = ${scaleFactor.toFixed(2)}`,
-    `Horas finais: ${adjustedHours.toFixed(2)}h × ${scaleFactor.toFixed(2)} = ${finalHours.toFixed(2)}h`
+    `1. Tempo Médio: ${totalAvailableHours}h ÷ ${numeroDisciplinas} disciplinas = ${tempoMedio.toFixed(2)}h`,
+    `2. Tempo Mínimo (Piso): ${tempoMedio.toFixed(2)}h × ${FLOOR_PERCENTAGE * 100}% = ${tempoMinimo.toFixed(2)}h`,
+    `3. Tempo Restante a Distribuir: ${totalAvailableHours}h - (${tempoMinimo.toFixed(2)}h × ${numeroDisciplinas}) = ${tempoRestante.toFixed(2)}h`,
+    `4. Fator de Prioridade: ${discipline.importance} (imp) × ${deficit} (déficit) = ${fatorPrioridade.toFixed(2)}`,
+    `5. Tempo Adicional: (${fatorPrioridade.toFixed(2)} ÷ ${somaFatores.toFixed(2)}) × ${tempoRestante.toFixed(2)}h = ${tempoAdicional.toFixed(2)}h`,
+    `6. Horas Finais: ${tempoMinimo.toFixed(2)}h (mínimo) + ${tempoAdicional.toFixed(2)}h (adicional) = ${tempoFinal.toFixed(2)}h`
   ];
 }
 
 export function getSimpleFormula(): string {
-  return `Base: Total ÷ Disciplinas, depois ajustado por (Importância × ${IMPORTANCE_WEIGHT} + (${MAX_IMPORTANCE_KNOWLEDGE_SCORE} - Conhecimento) × ${KNOWLEDGE_WEIGHT})`;
+  return `Cada matéria recebe um tempo mínimo, e o tempo restante é dividido pelo Fator de Prioridade (Importância × Déficit de Conhecimento).`;
 }
 
 export function getCompleteFormula(disciplinesCount: number, totalHours: number): string {
-  return `Horas por disciplina = [(${totalHours}h ÷ ${disciplinesCount} disciplinas) × Pontuação da disciplina]`;
+  return `Tempo Mínimo = (${totalHours}h ÷ ${disciplinesCount}) × ${FLOOR_PERCENTAGE * 100}%. O resto é distribuído por prioridade.`;
 }

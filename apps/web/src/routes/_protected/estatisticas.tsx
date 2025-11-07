@@ -85,6 +85,8 @@ function EstatisticasPage() {
   const calculatedMaxScale = maxDurationMinutes >= MINIMUM_SCALE_MINUTES
     ? maxDurationMinutes + EXTRA_PADDING_MINUTES
     : MINIMUM_SCALE_MINUTES;
+  const yAxisTicks = Array.from({ length: Math.floor(calculatedMaxScale / 60) + 1 }, (_, i) => i * 60);
+  console.log('EstatisticasPage chartData', chartData, { maxDurationMinutes, calculatedMaxScale });
 
 
   if (statisticsQuery.isLoading || todayDisciplinesQuery.isLoading) {
@@ -204,8 +206,10 @@ function EstatisticasPage() {
                     <YAxis
                       tick={{ fontSize: 10 }}
                       domain={[0, calculatedMaxScale]}
+                      ticks={yAxisTicks}
+                      allowDecimals={false}
                       label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
-                      tickFormatter={(value) => `${(value / 60).toFixed(0)}`}
+                      tickFormatter={(value) => `${value / 60}`}
                     />
                     <Tooltip
                       contentStyle={{
