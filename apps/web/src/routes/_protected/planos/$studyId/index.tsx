@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Plus, BookOpen, MoreHorizontal, ChevronLeft, BookCopy, Timer, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { Breadcrumb } from '@/components/Breadcrumb';
@@ -230,10 +231,18 @@ function StudyDetailsPage() {
   const handleCreateDiscipline = () => {
     if (!newDisciplineName.trim()) return;
 
-    createDisciplineMutation.mutate({
-      studyId,
-      name: newDisciplineName,
+    const disciplineLines = newDisciplineName.split('\n').filter(line => line.trim());
+
+    disciplineLines.forEach(disciplineName => {
+      if (disciplineName.trim()) {
+        createDisciplineMutation.mutate({
+          studyId,
+          name: disciplineName.trim(),
+        });
+      }
     });
+
+    setNewDisciplineName('');
   };
 
   const handleEditDiscipline = (discipline: { id: string; name: string }) => {
@@ -468,23 +477,24 @@ function StudyDetailsPage() {
             <DialogHeader>
               <DialogTitle>Criar Nova Disciplina</DialogTitle>
               <DialogDescription>
-                Adicione uma nova disciplina ao seu plano de estudos.
+                Adicione uma ou mais disciplinas ao seu plano de estudos.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="discipline-name">Nome da Disciplina</Label>
-                <Input
+                <Label htmlFor="discipline-name">Nome(s) da Disciplina</Label>
+                <Textarea
                   id="discipline-name"
                   value={newDisciplineName}
                   onChange={(e) => setNewDisciplineName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newDisciplineName.trim() && !createDisciplineMutation.isPending) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
                       handleCreateDiscipline();
                     }
                   }}
-                  placeholder="Digite o nome da disciplina"
-                  className="mt-1"
+                  placeholder="Adicionar nova disciplina...&#10;Uma disciplina por linha para adicionar múltiplas"
+                  className="mt-1 min-h-10 resize-none"
                 />
               </div>
             </div>
