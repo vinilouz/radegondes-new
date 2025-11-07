@@ -74,6 +74,12 @@ function PlanejamentoPage() {
   const weeklyGoalHours = activeCycle?.hoursPerWeek || 0;
   const weeklyProgress = weeklyGoalHours > 0 ? Math.min((weeklyStudiedHours / weeklyGoalHours) * 100, 100) : 0;
 
+  const formatHoursToHoursMinutes = (hours: number) => {
+    const wholeHours = Math.floor(hours);
+    const minutes = Math.round((hours - wholeHours) * 60);
+    return `${wholeHours}h ${minutes}min`;
+  };
+
   const [hoveredDiscipline, setHoveredDiscipline] = useState<string | null>(null);
 
 
@@ -110,7 +116,7 @@ function PlanejamentoPage() {
               <Edit className="h-4 w-4" />
               Editar Ciclo
             </Button>
-          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
               <DialogTrigger asChild>
                 <Button
                   variant="destructive"
@@ -211,7 +217,7 @@ function PlanejamentoPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-muted-foreground">Progresso Semanal</span>
                     <span className="text-2xl font-bold text-primary">
-                      {weeklyStudiedHours.toFixed(1)}h / {weeklyGoalHours}h
+                      {formatHoursToHoursMinutes(weeklyStudiedHours)} / {formatHoursToHoursMinutes(weeklyGoalHours)}
                     </span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-3">
@@ -268,8 +274,8 @@ function PlanejamentoPage() {
                               </div>
                               {disciplineCalc && (
                                 <div className="text-right">
-                                  <div className="text-lg font-bold">{Math.floor(disciplineCalc.estimatedHours)}h {Math.round((disciplineCalc.estimatedHours % 1) * 60)}min</div>
-                                  <div className="text-xs text-muted-foreground">por dia</div>
+                                  <div className="text-lg font-bold">{formatHoursToHoursMinutes(disciplineCalc.estimatedHours)}</div>
+                                  <div className="text-xs text-muted-foreground">por semana</div>
                                 </div>
                               )}
                             </div>
@@ -280,89 +286,91 @@ function PlanejamentoPage() {
                   })}
                 </div>
               </div>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="relative w-full aspect-square max-w-sm mx-auto group">
-                    {hoveredDiscipline && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        <div className="bg-background border rounded-lg px-3 py-2 shadow-lg">
-                          <div className="font-medium text-sm">{hoveredDiscipline}</div>
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Grafico</h3>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="relative w-full aspect-square max-w-sm mx-auto group">
+                      {hoveredDiscipline && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                          <div className="bg-background border rounded-lg px-3 py-2 shadow-lg">
+                            <div className="font-medium text-sm">{hoveredDiscipline}</div>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    <svg viewBox="0 0 200 200" className="w-full h-full" onMouseLeave={() => setHoveredDiscipline(null)}>
-                      {studyTimeCalculation && (() => {
-                        let currentAngle = -90;
+                      )}
+                      <svg viewBox="0 0 200 200" className="w-full h-full" onMouseLeave={() => setHoveredDiscipline(null)}>
+                        {studyTimeCalculation && (() => {
+                          let currentAngle = -90;
+                          const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
+
+                          return studyTimeCalculation.disciplines.map((discipline, index) => {
+                            const percentage = discipline.precisePercentage;
+                            const angle = (percentage / 100) * 360;
+                            const startAngle = currentAngle;
+                            const endAngle = currentAngle + angle;
+
+                            currentAngle = endAngle;
+
+                            const startRad = (startAngle * Math.PI) / 180;
+                            const endRad = (endAngle * Math.PI) / 180;
+
+                            const outerRadius = 90;
+                            const innerRadius = 60;
+
+                            const x1 = 100 + outerRadius * Math.cos(startRad);
+                            const y1 = 100 + outerRadius * Math.sin(startRad);
+                            const x2 = 100 + outerRadius * Math.cos(endRad);
+                            const y2 = 100 + outerRadius * Math.sin(endRad);
+                            const x3 = 100 + innerRadius * Math.cos(endRad);
+                            const y3 = 100 + innerRadius * Math.sin(endRad);
+                            const x4 = 100 + innerRadius * Math.cos(startRad);
+                            const y4 = 100 + innerRadius * Math.sin(startRad);
+
+                            const largeArc = angle > 180 ? 1 : 0;
+
+                            const pathData = [
+                              `M ${x1} ${y1}`,
+                              `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2} ${y2}`,
+                              `L ${x3} ${y3}`,
+                              `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4}`,
+                              'Z'
+                            ].join(' ');
+
+                            return (
+                              <path
+                                key={discipline.id}
+                                d={pathData}
+                                fill={colors[index % colors.length]}
+                                className="opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                                onMouseEnter={() => setHoveredDiscipline(`${discipline.name}: ${Math.round(percentage)}% (${formatHoursToHoursMinutes(discipline.estimatedHours)})`)}
+                              />
+                            );
+                          });
+                        })()}
+                      </svg>
+                    </div>
+
+                    <div className="mt-6 space-y-2">
+                      {studyTimeCalculation && studyTimeCalculation.disciplines.map((discipline, index) => {
                         const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
 
-                        return studyTimeCalculation.disciplines.map((discipline, index) => {
-                          const percentage = discipline.percentage;
-                          const angle = (percentage / 100) * 360;
-                          const startAngle = currentAngle;
-                          const endAngle = currentAngle + angle;
-
-                          currentAngle = endAngle;
-
-                          const startRad = (startAngle * Math.PI) / 180;
-                          const endRad = (endAngle * Math.PI) / 180;
-
-                          const outerRadius = 90;
-                          const innerRadius = 60;
-
-                          const x1 = 100 + outerRadius * Math.cos(startRad);
-                          const y1 = 100 + outerRadius * Math.sin(startRad);
-                          const x2 = 100 + outerRadius * Math.cos(endRad);
-                          const y2 = 100 + outerRadius * Math.sin(endRad);
-                          const x3 = 100 + innerRadius * Math.cos(endRad);
-                          const y3 = 100 + innerRadius * Math.sin(endRad);
-                          const x4 = 100 + innerRadius * Math.cos(startRad);
-                          const y4 = 100 + innerRadius * Math.sin(startRad);
-
-                          const largeArc = angle > 180 ? 1 : 0;
-
-                          const pathData = [
-                            `M ${x1} ${y1}`,
-                            `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2} ${y2}`,
-                            `L ${x3} ${y3}`,
-                            `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4}`,
-                            'Z'
-                          ].join(' ');
-
-                          return (
-                            <path
-                              key={discipline.id}
-                              d={pathData}
-                              fill={colors[index % colors.length]}
-                              className="opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
-                              onMouseEnter={() => setHoveredDiscipline(`${discipline.name}: ${percentage}% (${discipline.estimatedHours}h)`)}
-                            />
-                          );
-                        });
-                      })()}
-                    </svg>
-                  </div>
-
-                  <div className="mt-6 space-y-2">
-                    {studyTimeCalculation && studyTimeCalculation.disciplines.map((discipline, index) => {
-                      const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
-
-                      return (
-                        <div key={discipline.id} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: colors[index % colors.length] }}
-                            />
-                            <span className="truncate">{discipline.name}</span>
+                        return (
+                          <div key={discipline.id} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: colors[index % colors.length] }}
+                              />
+                              <span className="truncate">{discipline.name}</span>
+                            </div>
+                            <span className="font-medium">{discipline.percentage}%</span>
                           </div>
-                          <span className="font-medium">{discipline.percentage}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
         </div>

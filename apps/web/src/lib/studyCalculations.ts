@@ -8,9 +8,10 @@ export interface DisciplineWithScores {
 
 export interface CalculatedDiscipline extends DisciplineWithScores {
   // O 'score' agora representa o Fator de Prioridade.
-  score: number; 
+  score: number;
   estimatedHours: number;
   percentage: number;
+  precisePercentage: number;
 }
 
 export interface StudyCalculationResult {
@@ -54,29 +55,29 @@ export function calculateStudyTimeDistribution(
   const somaFatores = factors.reduce((sum, f) => sum + f.fator, 0);
 
   // --- PASSO 3: Distribuir o tempo restante e calcular o tempo final ---
-  const finalDisciplines = disciplines.map(d => {
+  const tempDisciplines = disciplines.map(d => {
     const fatorInfo = factors.find(f => f.id === d.id);
     const fator = fatorInfo ? fatorInfo.fator : 0;
 
     // Apenas distribui se houver fatores de prioridade
     const tempoAdicional = somaFatores > 0 ? (fator / somaFatores) * tempoRestante : 0;
-    
+
     const tempoFinal = tempoMinimoPorDisciplina + tempoAdicional;
 
     // Arredondamento para melhor exibição
     const estimatedHours = Math.round(tempoFinal * 10) / 10;
-    const percentage = Math.round((tempoFinal / totalAvailableHours) * 100);
-    
+
     return {
       ...d,
       score: Math.round(fator * 100) / 100, // O 'score' é o Fator de Prioridade
       estimatedHours,
-      percentage,
+      percentage: Math.round((tempoFinal / totalAvailableHours) * 100), // Rounded for display
+      precisePercentage: (tempoFinal / totalAvailableHours) * 100, // Precise for graph calculation
     };
   });
 
   return {
-    disciplines: finalDisciplines.sort((a, b) => b.estimatedHours - a.estimatedHours), // Ordena do maior para o menor
+    disciplines: tempDisciplines.sort((a, b) => b.estimatedHours - a.estimatedHours), // Ordena do maior para o menor
     totalHours: Math.round(totalAvailableHours * 10) / 10,
   };
 }
