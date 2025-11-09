@@ -68,31 +68,6 @@ export const cycleActions = {
     }
   },
 
-  // Atualiza progresso do ciclo quando timer for parado
-  async updateProgress(timeSessionId: string, actualDuration: number) {
-    const session = cycleStore.state.activeCycleSession
-    if (!session) {
-      console.error('No active cycle session to update')
-      return
-    }
-
-    try {
-      // Chamar mutation para atualizar progresso no backend
-      await trpcClient.updateCycleProgress.mutate({
-        cycleId: session.cycleId,
-        timeSessionId,
-        actualDuration,
-      })
-
-      console.log('Cycle progress updated successfully')
-    } catch (error) {
-      console.error('Error updating cycle progress:', error)
-    }
-
-    // Limpa sessão após atualizar
-    await this.stopCycleSession()
-  },
-
   // Restaura sessão ao carregar página
   async restoreSession(): Promise<boolean> {
     try {

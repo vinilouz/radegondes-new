@@ -52,11 +52,11 @@ export function formatHoursMinutes(ms: number): string {
   return `${hours}h ${minutes}min`;
 }
 
-export function formatRemainingDays(totalEstimatedHours: number, studiedHours: number, dailyStudyHours: number): string {
-  const remainingHours = Math.max(0, totalEstimatedHours - studiedHours);
-  const remainingDays = Math.ceil(remainingHours / dailyStudyHours);
+export function formatRemainingDays(totalTopics: number, completedTopics: number, dailyTopics: number): string {
+  const remainingTopics = Math.max(0, totalTopics - completedTopics);
+  const remainingDays = Math.ceil(remainingTopics / dailyTopics);
 
-  if (remainingDays === 0 || remainingHours <= 0) {
+  if (remainingDays === 0 || remainingTopics <= 0) {
     return "0 dias";
   }
 

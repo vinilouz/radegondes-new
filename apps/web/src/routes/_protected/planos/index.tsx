@@ -65,7 +65,7 @@ function StudyCard({ study, navigate, handleDeleteStudy, handleRenameStudy }: { 
   return (
     <a
       key={study.id}
-      className="study-card relative bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:translate-y-[-2px] cursor-pointer overflow-hidden flex flex-col min-h-[180px] no-underline"
+      className="study-card relative bg-card border border-transparent hover:border-primary rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 cursor-pointer overflow-hidden flex flex-col min-h-[180px] no-underline"
       href={`/planos/${study.id}`}
       onClick={(e) => {
         e.preventDefault();

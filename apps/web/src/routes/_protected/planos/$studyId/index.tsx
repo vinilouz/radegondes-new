@@ -362,12 +362,12 @@ function StudyDetailsPage() {
 
   const totalStudyTime = allTopicIds.reduce((total, topicId) => total + selectors.getTopicTime(topicId)(storeState), 0);
   const completedTopics = topics.filter(topic => topic.status === "completed").length;
+  const remainingTopics = topics.length - completedTopics;
+  const dailyTopics = 3;
+  const remainingDays = remainingTopics > 0 ? Math.ceil(remainingTopics / dailyTopics) : 0;
+  const remainingDaysText = remainingDays === 0 ? "0 dias" : remainingDays === 1 ? "1 dia" : `${remainingDays} dias`;
 
-  const dailyStudyHours = 3;
-  const totalEstimatedHours = topics.length;
-  const studiedHours = totalStudyTime / 1000 / 60 / 60;
-  const remainingDaysText = formatRemainingDays(totalEstimatedHours, studiedHours, dailyStudyHours);
-
+  
   const overallProgress = disciplines.length > 0
     ? disciplines.reduce((sum, discipline) => {
         const disciplineTopics = topics.filter(topic => topic.disciplineId === discipline.id);

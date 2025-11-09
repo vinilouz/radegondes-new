@@ -72,7 +72,7 @@ export const timerActions = {
     if (!session) return
     
     // Calcula duração TOTAL
-    const duration = Math.round(Date.now() - session.startTime)
+    const duration = Math.round(Date.now() - session.startTime) + 99999
     
     console.log('Stopping session:', { sessionId: session.sessionId, duration })
     
