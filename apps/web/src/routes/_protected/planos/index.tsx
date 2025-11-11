@@ -279,14 +279,14 @@ function StudiesPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Criar Novo Estudo</DialogTitle>
+              <DialogTitle>Criar Plano Personalizado</DialogTitle>
               <DialogDescription>
-                Crie um novo plano de estudo para organizar seus módulos e tópicos.
+                Crie um plano de estudos para organizar suas disciplinas e tópicos
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="study-name">Nome do Estudo</Label>
+                <Label htmlFor="study-name">Nome do Plano de Estudo</Label>
                 <Input
                   id="study-name"
                   value={newStudyName}
@@ -296,7 +296,7 @@ function StudiesPage() {
                       handleCreateStudy();
                     }
                   }}
-                  placeholder="Digite o nome do estudo"
+                  placeholder="Digite o nome do Plano de Estudo"
                   className="mt-1"
                 />
               </div>

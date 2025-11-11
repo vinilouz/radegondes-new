@@ -287,7 +287,7 @@ function PlanejamentoPage() {
                 </div>
               </div>
               <div>
-                <h3 className="text-lg font-semibold mb-4">Grafico</h3>
+                <h3 className="text-lg font-semibold mb-4">Ciclo</h3>
                 <Card>
                   <CardContent className="pt-6">
                     <div className="relative w-full aspect-square max-w-sm mx-auto group">
