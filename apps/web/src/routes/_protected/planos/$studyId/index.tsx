@@ -396,7 +396,7 @@ function StudyDetailsPage() {
         <Button
           variant="secondary"
           onClick={() => navigate({ to: "/planos" })}
-          className="flex items-center gap-2 text-primary bg-primary/10 border-1 border-primary/40 hover:bg-primary/20 hover:border-primary/50">
+          className="flex items-center gap-2 text-primary bg-primary/10 border border-primary/40 hover:bg-primary/20 hover:border-primary/50">
           <ChevronLeft className="h-4 w-4" />
           Voltar
         </Button>

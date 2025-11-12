@@ -220,7 +220,7 @@ function PlanejamentoPage() {
                       {formatHoursToHoursMinutes(weeklyStudiedHours)} / {formatHoursToHoursMinutes(weeklyGoalHours)}
                     </span>
                   </div>
-                  <div className="w-full bg-primary/20 rounded-full h-3">
+                  <div className="w-full bg-muted rounded-full h-3">
                     <div
                       className="bg-primary h-3 rounded-full transition-all duration-300"
                       style={{ width: `${weeklyProgress}%` }}
