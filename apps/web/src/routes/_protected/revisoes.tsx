@@ -222,7 +222,7 @@ function RevisionPage() {
                             <div className="w-1 h-1 rounded-full bg-primary" />
                           )}
                           {getRevisionCount(date) - pendingCount > 0 && (
-                            <div className="w-1 h-1 rounded-full bg-success" />
+                            <div className="w-1 h-1 rounded-full bg-chart-1" />
                           )}
                         </div>
                       )}
@@ -253,7 +253,7 @@ function RevisionPage() {
                   <span>Pendente</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-success" />
+                  <div className="w-2 h-2 rounded-full bg-chart-1" />
                   <span>Concluída</span>
                 </div>
               </div>
@@ -274,7 +274,7 @@ function RevisionPage() {
           <CardContent className="p-0">
             <ScrollArea className="h-[600px]">
               {allRevisionsSorted.length > 0 ? (
-                <div className="p-4 pt-0">
+                <div className="p-4 pt-0 space-y-3">
                   {allRevisionsSorted.map((revision, index) => {
                     const revDate = new Date(revision.scheduledDate);
                     const isFirstOfDate = index === 0 ||
@@ -283,7 +283,7 @@ function RevisionPage() {
                     return (
                       <div key={revision.id}>
                         {isFirstOfDate && (
-                          <div className="sticky top-0 bg-background/95 backdrop-blur-sm pt-3 pb-2 -mx-4 px-4 mb-1 z-10 border-b">
+                          <div className="sticky top-0 bg-background/95 backdrop-blur-sm pt-3 pb-2 -mx-4 px-4 mb-3 z-10 border-b">
                             <div className="flex items-center gap-2">
                               <CalendarIcon className="h-3.5 w-3.5 text-primary" />
                               <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground">
@@ -292,50 +292,57 @@ function RevisionPage() {
                             </div>
                           </div>
                         )}
-                        <button
+                        <div
                           onClick={() => handleRevisionClick(revDate)}
-                          className={`w-full p-2 mb-1 rounded-md border transition-all text-left group ${
+                          className={`group cursor-pointer rounded-lg border p-3 transition-all ${
                             revision.completed === 1
-                              ? 'bg-success/5 border-success/20 hover:bg-success/10'
-                              : 'bg-card border-border hover:border-primary/50 hover:bg-accent'
-                          } ${selectedDate && isSameDay(selectedDate, revDate) ? 'ring-1 ring-primary bg-primary/5' : ''}`}
+                              ? 'bg-chart-1/5 border-chart-1/20 hover:bg-chart-1/10'
+                              : 'bg-card border-border hover:border-primary/50 hover:bg-accent/50'
+                          } ${selectedDate && isSameDay(selectedDate, revDate) ? 'ring-2 ring-primary bg-primary/5' : ''}`}
                         >
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={revision.completed === 1}
-                              onCheckedChange={(e) => {
-                                e?.stopPropagation?.();
-                                handleToggleRevision(revision.id, revision.completed);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3">
+                            <div className="flex items-center gap-2 pt-0.5">
+                              <Checkbox
+                                checked={revision.completed === 1}
+                                onCheckedChange={(e) => {
+                                  e?.stopPropagation?.();
+                                  handleToggleRevision(revision.id, revision.completed);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="shrink-0"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0 space-y-1">
                               <Link
                                 to="/planos/$studyId/$disciplineId"
                                 params={{ studyId: revision.studyId, disciplineId: revision.disciplineId }}
                                 className={`font-medium text-sm hover:underline block truncate ${
-                                  revision.completed === 1 ? 'line-through text-muted-foreground' : 'group-hover:text-primary'
+                                  revision.completed === 1 ? 'line-through text-muted-foreground' : 'group-hover:text-primary transition-colors'
                                 }`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {revision.topicName}
                               </Link>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <p className="text-xs text-muted-foreground truncate">
+                              <div className="flex items-center gap-2 text-xs">
+                                <Badge variant="outline" className="text-muted-foreground border-border/50">
                                   {revision.disciplineName}
-                                </p>
-                                <span className="text-xs text-muted-foreground/50">•</span>
-                                <p className="text-xs text-muted-foreground/70 truncate">
+                                </Badge>
+                                <span className="text-muted-foreground/50">•</span>
+                                <span className="text-muted-foreground/70">
                                   {revision.studyName}
-                                </p>
+                                </span>
                               </div>
                             </div>
-                            {revision.completed === 1 && (
-                              <Check className="h-4 w-4 text-success shrink-0" />
-                            )}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {revision.completed === 1 && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-chart-1/10 border border-chart-1/30 rounded-full">
+                                  <Check className="h-3 w-3 text-chart-1" />
+                                  <span className="text-xs font-medium text-chart-1">Concluída</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </button>
+                        </div>
                       </div>
                     );
                   })}

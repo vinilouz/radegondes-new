@@ -248,7 +248,7 @@ function EstatisticasPage() {
         {/* Ranking de Disciplinas */}
         <Card>
           <CardHeader>
-            <CardTitle>Disciplinas</CardTitle>
+            <CardTitle>Disciplinas estudadas</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
             {stats?.disciplineStats && stats.disciplineStats.length > 0 ? (
@@ -293,7 +293,7 @@ function EstatisticasPage() {
                     <div className="flex-1">
                       <p className="text-sm font-medium">{discipline.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatTimeRelative(discipline.time)} • {discipline.sessions} sessão{discipline.sessions > 1 ? 'ões' : ''}
+                        {formatTimeRelative(discipline.time)} • {discipline.sessions} {discipline.sessions > 1 ? 'sessões' : 'sessão'}
                       </p>
                     </div>
                   </div>

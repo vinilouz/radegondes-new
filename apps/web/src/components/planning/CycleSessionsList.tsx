@@ -118,10 +118,9 @@ export function CycleSessionsList({ cycleId }: CycleSessionsListProps) {
                 {session.status === 'pending' && (
                   <Button
                     size="sm"
-                    variant="outline"
                     onClick={() => handleStartSession(session.id)}
                     disabled={startCycleSessionMutation.isPending}
-                    className="flex items-center gap-1"
+                    className="bg-chart-1 hover:bg-chart-1/90 text-chart-1-foreground"
                   >
                     <PlayCircle className="h-4 w-4" />
                     Iniciar

@@ -87,7 +87,7 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId, d
       <div className={`
         font-mono px-3 py-1.5 rounded-lg text-sm font-medium
         ${isActive
-          ? 'bg-success/20 text-success ring-2 ring-success/50'
+          ? 'bg-chart-1/10 text-chart-1 border border-chart-1/30'
           : 'bg-primary/10 text-primary border border-primary/30'}
       `}>
         {formatTime(displayTime)}
@@ -106,7 +106,7 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId, d
               onClick={handleStart}
               disabled={isWorking}
               size="sm"
-              className="bg-success hover:bg-success/90 text-success-foreground"
+              className="bg-chart-1 hover:bg-chart-1/90 text-chart-1-foreground"
             >
               <Play className="h-3.5 w-3.5 mr-1" />
               {isWorking ? 'Iniciando...' : 'Iniciar'}

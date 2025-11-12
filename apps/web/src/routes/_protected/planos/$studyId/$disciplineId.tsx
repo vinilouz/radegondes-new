@@ -134,7 +134,7 @@ function SortableTopicCard({
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">Registre aqui seu percentual de acertos</p>
                 <div
-                  className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/30 rounded-md text-sm font-semibold text-success cursor-pointer hover:bg-success/20 transition-all"
+                  className="flex items-center gap-1 px-2 py-1 bg-chart-1/10 border border-chart-1/30 rounded-md text-sm font-semibold text-chart-1 cursor-pointer hover:bg-chart-1/20 transition-all"
                   title="Questões corretas - Clique para editar"
                   onClick={onEditClick}
                 >
@@ -524,7 +524,7 @@ function DisciplinePage() {
 
   const getStatusBadge = (status: string) => {
     if (status === 'completed') {
-      return <Badge variant="outline" className="border-success text-success"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
+      return <Badge variant="outline" className="border-chart-1 text-chart-1"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
     }
     return null;
   }
@@ -664,7 +664,7 @@ function DisciplinePage() {
                         const value = parseInt(e.target.value) || 0;
                         setStudyTopic(t => t ? { ...t, correct: Math.max(0, value) } : null);
                       }}
-                      className="text-center py-2 bg-success/10 text-success border-success/30 focus:border-success/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="text-center py-2 bg-chart-1/10 text-chart-1 border-chart-1/30 focus:border-chart-1/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setStudyTopic(t => t ? { ...t, correct: t.correct + 1 } : null)}>
                       <Plus className="h-4 w-4" />
@@ -721,7 +721,7 @@ function DisciplinePage() {
                     } : null)
                   }
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${studyTopic.status === 'completed'
-                    ? 'bg-success/10 text-success hover:bg-success/20 border border-success/30'
+                    ? 'bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 border border-chart-1/30'
                     : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-muted'
                     }`}
                 >
@@ -977,7 +977,7 @@ function DisciplinePage() {
                             {new Date(rev.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short' })}
                           </span>
                           {rev.completed === 1 && (
-                            <Badge variant="outline" className="border-success text-success text-xs">
+                            <Badge variant="outline" className="border-chart-1 text-chart-1 text-xs">
                               <Check className="h-3 w-3 mr-1" />
                               Concluída
                             </Badge>
