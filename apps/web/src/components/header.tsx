@@ -27,7 +27,7 @@ export default function Header() {
     <div className="sticky top-0 z-50 w-full py-6">
       <div className="container mx-auto">
         <header className="bg-card rounded-xl border border-border shadow-lg">
-          <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex h-16 items-center justify-between px-3">
             {/* Logo e Branding */}
             <div className="flex items-center gap-3">
               <Link
@@ -35,14 +35,10 @@ export default function Header() {
                 className="flex items-center gap-3 transition-opacity hover:opacity-80"
               >
                 <img
-                  src="/logo.png"
+                  src="/logo-h.png"
                   alt="Radegondes Logo"
-                  className="h-10 w-auto"
+                  className="h-9 w-auto max-w-full object-contain"
                 />
-                <div className="flex flex-col">
-                  <span className="text-lg font-bold leading-none">Radegondes</span>
-                  <span className="text-xs text-muted-foreground">Resumos | Concursos</span>
-                </div>
               </Link>
             </div>
 

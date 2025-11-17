@@ -1,0 +1,9 @@
+{
+  "disabledMcpjsonServers": [
+    "shadcn",
+    "context7",
+    "remotion-documentation",
+    "chrome-devtools",
+    "kibo-ui"
+  ]
+}
