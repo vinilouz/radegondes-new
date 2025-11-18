@@ -19,6 +19,8 @@ import { calculatePeriodicDates, calculateWeeklyDates, formatRevisionDate, PERIO
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   DndContext,
   closestCenter,
@@ -164,7 +166,7 @@ function SortableTopicCard({
                 <div className="flex items-center gap-1 px-2 py-1 bg-muted/50 border border-border rounded-md text-sm text-muted-foreground">
                   <History className="h-4 w-4" />
                   <span className="text-xs">Último estudo:</span>
-                  {new Date(lastStudyDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                  {format(new Date(lastStudyDate), 'dd/MM', { locale: ptBR })}
                 </div>
               )}
               <div className="flex items-center gap-1 ml-auto sm:ml-0" onClick={(e) => e.stopPropagation()}>
@@ -757,7 +759,7 @@ function DisciplinePage() {
                   <div className="space-y-2 max-h-40 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full">
                     {topicSessionsQuery.data.map(session => (
                       <div key={session.id} className="flex justify-between items-center p-2 bg-muted rounded-lg group">
-                        <span className="text-sm">{new Date(session.startTime).toLocaleString('pt-BR')}</span>
+                        <span className="text-sm">{format(new Date(session.startTime), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</span>
                         <div className="flex items-center gap-2">
                           {editingSessionId === session.id ? (
                             <div className="flex items-center gap-1">
@@ -974,7 +976,7 @@ function DisciplinePage() {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-primary" />
                           <span className="text-sm font-medium">
-                            {new Date(rev.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short' })}
+                            {format(new Date(rev.scheduledDate), 'dd/MM/yyyy (EEE)', { locale: ptBR })}
                           </span>
                           {rev.completed === 1 && (
                             <Badge variant="outline" className="border-chart-1 text-chart-1 text-xs">
