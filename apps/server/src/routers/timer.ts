@@ -158,4 +158,30 @@ export const timerRouter = router({
         studyTotals: {},
       };
     }),
-});
+
+  // Limpa sessões com duração 0 (endpoint de manutenção)
+  cleanupZeroDurationSessions: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
+
+      // Exclui todas as sessões com duração 0 do usuário
+      const deletedCount = await db
+        .delete(timeSession)
+        .where(and(
+          eq(timeSession.duration, 0),
+          sql`${timeSession.id} IN (
+            SELECT ${timeSession.id}
+            FROM ${timeSession}
+            INNER JOIN ${topic} ON ${timeSession.topicId} = ${topic.id}
+            INNER JOIN ${discipline} ON ${topic.disciplineId} = ${discipline.id}
+            INNER JOIN ${study} ON ${discipline.studyId} = ${study.id}
+            WHERE ${study.userId} = ${userId}
+          )`
+        ));
+
+      return {
+        deletedCount: deletedCount,
+        message: `Foram removidas ${deletedCount} sessões com duração 0`
+      };
+    }),
+  });

@@ -49,12 +49,7 @@ export function CycleSessionsList({ cycleId }: CycleSessionsListProps) {
       // Iniciar sessão no store
       await cycleActions.startCycleSession(result);
 
-      // Redirecionar para a página do tópico para iniciar o timer
-      // TODO: Obter os IDs necessários para navegação
-      console.log('Cycle session started:', result);
-
     } catch (error) {
-      console.error('Error starting session:', error);
     }
   };
 

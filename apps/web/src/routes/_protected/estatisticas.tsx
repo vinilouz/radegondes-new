@@ -19,6 +19,10 @@ function EstatisticasPage() {
     ...trpc.getStudyStatistics.queryOptions({ days: selectedPeriod === 'all' ? 9999 : selectedPeriod }),
   });
 
+  const statisticsMetricsQuery = useQuery({
+    ...trpc.getStatisticsMetrics.queryOptions(),
+  });
+
   const todayDisciplinesQuery = useQuery({
     ...trpc.getTodayDisciplines.queryOptions(),
   });
@@ -86,7 +90,6 @@ function EstatisticasPage() {
     ? maxDurationMinutes + EXTRA_PADDING_MINUTES
     : MINIMUM_SCALE_MINUTES;
   const yAxisTicks = Array.from({ length: Math.floor(calculatedMaxScale / 60) + 1 }, (_, i) => i * 60);
-  console.log('EstatisticasPage chartData', chartData, { maxDurationMinutes, calculatedMaxScale });
 
 
   if (statisticsQuery.isLoading || todayDisciplinesQuery.isLoading) {
@@ -101,6 +104,16 @@ function EstatisticasPage() {
 
   return (
     <div className="container mx-auto p-6">
+
+      <Card className="border mb-8">
+        <CardHeader>
+          <CardTitle>Estatísticas de Métricas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="text-xs overflow-auto max-h-64">{JSON.stringify(statisticsMetricsQuery.data?.filter(item => item.startTime), null, 2)}</pre>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div>
@@ -115,7 +128,7 @@ function EstatisticasPage() {
               key={days}
               variant={selectedPeriod === days ? "default" : "outline"}
               size="sm"
-              onClick={() => setSelectedPeriod(days)}
+              onClick={() => setSelectedPeriod(days as number | "all")}
             >
               {days === 'all' ? 'Todos' : `${days}d`}
             </Button>
@@ -125,7 +138,7 @@ function EstatisticasPage() {
 
       {/* Cards de Métricas Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
+        <Card className="border border-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tempo Total</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -138,7 +151,7 @@ function EstatisticasPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border border-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sessões de estudos</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -151,7 +164,7 @@ function EstatisticasPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border border-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ritmo de Estudos</CardTitle>
             <Flame className="h-4 w-4 text-muted-foreground" />
@@ -164,7 +177,7 @@ function EstatisticasPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border border-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Horário Produtivo</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -183,7 +196,7 @@ function EstatisticasPage() {
       {/* Gráficos de Performance */}
       <div className="my-8">
         {/* Produtividade na Semana */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border border-red-500">
           <CardHeader>
             <CardTitle>Produtividade na Semana</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
@@ -246,7 +259,7 @@ function EstatisticasPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Ranking de Disciplinas */}
-        <Card>
+        <Card className="border border-red-500">
           <CardHeader>
             <CardTitle>Disciplinas estudadas</CardTitle>
           </CardHeader>
@@ -280,7 +293,7 @@ function EstatisticasPage() {
         </Card>
 
         {/* Disciplinas estudadas hoje */}
-        <Card>
+        <Card className="border border-red-500">
           <CardHeader>
             <CardTitle>Disciplinas estudadas hoje</CardTitle>
           </CardHeader>
@@ -313,7 +326,7 @@ function EstatisticasPage() {
 
       {/* Evolução no Tempo */}
       <div className="grid grid-cols-1 gap-6 mt-8">
-        <Card>
+        <Card className="border border-red-500">
           <CardHeader>
             <CardTitle>Taxa de Acertos por Disciplina</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">

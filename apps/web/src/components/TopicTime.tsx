@@ -57,7 +57,6 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId, d
       }
       await timerActions.startSession(topicId, disciplineId, studyId)
     } catch (error) {
-      console.error('Erro ao iniciar:', error)
       alert('Erro ao iniciar timer')
     } finally {
       setIsWorking(false)
@@ -74,7 +73,6 @@ export function TopicTime({ topicId, showButton = true, disciplineId, studyId, d
       await timerActions.loadTotals([topicId])
       if (onStop) await onStop()
     } catch (error) {
-      console.error('Erro ao parar:', error)
       alert('Erro ao parar timer. Tente novamente.')
     } finally {
       setIsWorking(false)

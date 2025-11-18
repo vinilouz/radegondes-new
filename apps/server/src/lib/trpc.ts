@@ -23,6 +23,6 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
-	console.log(`[${new Date().toISOString()}] tRPC ${type.toUpperCase()}: ${path}`);
+	// console.log(`[${new Date().toISOString()}] tRPC ${type.toUpperCase()}: ${path}`);
 	return next();
 });

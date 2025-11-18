@@ -796,10 +796,6 @@ export const appRouter = router({
       days: z.number().min(1).max(10000).default(30),
     }))
     .query(async ({ ctx, input }) => {
-      console.log('=== DEBUG getStudyStatistics ===');
-      console.log('UserId:', ctx.session.user.id);
-      console.log('Days:', input.days);
-
       const SAO_PAULO_TIMEZONE = 'America/Sao_Paulo';
 
       const toSaoPauloDateString = (date: Date): string => {
@@ -839,9 +835,6 @@ export const appRouter = router({
         ))
         .orderBy(desc(timeSession.startTime));
 
-      console.log('Sessions found:', sessions.length);
-      console.log('Sample sessions:', sessions.slice(0, 3));
-
       // Buscar desempenho dos tópicos atualizados no período
       const topicPerformance = await db
         .select({
@@ -860,8 +853,6 @@ export const appRouter = router({
           gte(topic.updatedAt, daysAgo)
         ))
         .orderBy(desc(topic.updatedAt));
-
-      console.log('Topic performance records:', topicPerformance.length);
 
       // Agrupar por data para gráfico - combinar tempo de estudo e desempenho
       const dailyData: Record<string, { duration: number; correct: number; wrong: number }> = {};
@@ -911,7 +902,7 @@ export const appRouter = router({
       });
 
       const mostProductiveHour = Object.entries(hourlyStats)
-        .sort(([,a], [,b]) => b - a)[0]?.[0];
+        .sort(([, a], [, b]) => b - a)[0]?.[0];
 
       // Estatísticas por disciplina
       const disciplineStats: Record<string, { time: number, sessions: number, correct: number, wrong: number }> = {};
@@ -977,12 +968,30 @@ export const appRouter = router({
         }))
       };
 
-      console.log('=== FINAL RESULT ===');
-      console.log('Total sessions:', result.totalSessions);
-      console.log('Average session time (ms):', result.averageSessionTime);
-      console.log('Average session time (min):', result.averageSessionTime / 1000 / 60);
-      console.log('Total time (ms):', result.totalTime);
-      console.log('Sample daily data:', result.dailyData.slice(0, 3));
+      return result;
+    }),
+
+  getStatisticsMetrics: protectedProcedure.use(loggerMiddleware)
+    .query(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
+
+      const result = await db
+        .select({
+          id: timeSession.id,
+          startTime: timeSession.startTime,
+          endTime: timeSession.endTime,
+          duration: timeSession.duration,
+          sessionType: timeSession.sessionType,
+          topicId: timeSession.topicId,
+          topicName: topic.name,
+          disciplineName: discipline.name,
+        })
+        .from(timeSession)
+        .leftJoin(topic, eq(timeSession.topicId, topic.id))
+        .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+        .leftJoin(study, eq(discipline.studyId, study.id))
+        .where(eq(study.userId, userId))
+        .orderBy(desc(timeSession.startTime));
 
       return result;
     }),
@@ -1110,8 +1119,8 @@ export const appRouter = router({
         .leftJoin(cycleDiscipline, eq(studyCycle.id, cycleDiscipline.cycleId))
         .where(eq(studyCycle.userId, userId))
         .groupBy(studyCycle.id, studyCycle.name, studyCycle.hoursPerWeek,
-                studyCycle.studyDays, studyCycle.minSessionDuration, studyCycle.maxSessionDuration,
-                studyCycle.startedAt, studyCycle.createdAt)
+          studyCycle.studyDays, studyCycle.minSessionDuration, studyCycle.maxSessionDuration,
+          studyCycle.startedAt, studyCycle.createdAt)
         .orderBy(desc(studyCycle.createdAt));
 
       return cycles;
@@ -1149,7 +1158,7 @@ export const appRouter = router({
         .leftJoin(topic, eq(discipline.id, topic.disciplineId))
         .where(eq(cycleDiscipline.cycleId, input.cycleId))
         .groupBy(cycleDiscipline.disciplineId, discipline.studyId, cycleDiscipline.importance,
-                cycleDiscipline.knowledge, discipline.name);
+          cycleDiscipline.knowledge, discipline.name);
 
       return {
         cycle,

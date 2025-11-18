@@ -46,7 +46,6 @@ export function StudyTimerWidget() {
       await timerActions.stopSession()
       await timerActions.loadTotals([activeSession.topicId])
     } catch (error) {
-      console.error('Erro ao parar sessão:', error)
       alert('Erro ao salvar. Por favor, tente novamente!')
       setIsStopping(false)
     }
