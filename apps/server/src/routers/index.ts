@@ -5,7 +5,7 @@ import { db } from "../db";
 import { study, discipline, topic, timeSession } from "../db/schema/study";
 import { user } from "../db/schema/auth";
 import { studyCycle, cycleDiscipline } from "../db/schema/planning";
-import { eq, and, desc, asc, count, gte, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, count, gte, sql, inArray, sum } from "drizzle-orm";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -972,10 +972,63 @@ export const appRouter = router({
     }),
 
   getStatisticsMetrics: protectedProcedure.use(loggerMiddleware)
-    .query(async ({ ctx }) => {
+    .input(z.object({
+      days: z.number().min(1).max(10000).optional(),
+      groupBy: z.enum(['session', 'topic', 'discipline']).optional().default('session'),
+    }))
+    .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      const result = await db
+      const conditions = [eq(study.userId, userId)];
+
+      if (input.days) {
+        const daysAgo = new Date();
+        daysAgo.setDate(daysAgo.getDate() - input.days);
+        conditions.push(gte(timeSession.startTime, daysAgo));
+      }
+
+      if (input.groupBy === 'discipline') {
+        return await db
+          .select({
+            disciplineId: discipline.id,
+            studyId: study.id,
+            name: discipline.name,
+            totalDuration: sum(timeSession.duration).mapWith(Number),
+            sessionCount: count(timeSession.id),
+            correct: sum(topic.correct).mapWith(Number),
+            wrong: sum(topic.wrong).mapWith(Number),
+          })
+          .from(timeSession)
+          .leftJoin(topic, eq(timeSession.topicId, topic.id))
+          .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+          .leftJoin(study, eq(discipline.studyId, study.id))
+          .where(and(...conditions))
+          .groupBy(discipline.id, discipline.name, study.id)
+          .orderBy(desc(sum(timeSession.duration)));
+      }
+
+      if (input.groupBy === 'topic') {
+        return await db
+          .select({
+            topicId: topic.id,
+            name: topic.name,
+            disciplineName: discipline.name,
+            totalDuration: sum(timeSession.duration).mapWith(Number),
+            sessionCount: count(timeSession.id),
+            correct: topic.correct,
+            wrong: topic.wrong,
+          })
+          .from(timeSession)
+          .leftJoin(topic, eq(timeSession.topicId, topic.id))
+          .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
+          .leftJoin(study, eq(discipline.studyId, study.id))
+          .where(and(...conditions))
+          .groupBy(topic.id, topic.name, discipline.name)
+          .orderBy(desc(sum(timeSession.duration)));
+      }
+
+      // Default: groupBy 'session'
+      return await db
         .select({
           id: timeSession.id,
           startTime: timeSession.startTime,
@@ -985,15 +1038,15 @@ export const appRouter = router({
           topicId: timeSession.topicId,
           topicName: topic.name,
           disciplineName: discipline.name,
+          correct: topic.correct,
+          wrong: topic.wrong,
         })
         .from(timeSession)
         .leftJoin(topic, eq(timeSession.topicId, topic.id))
         .leftJoin(discipline, eq(topic.disciplineId, discipline.id))
         .leftJoin(study, eq(discipline.studyId, study.id))
-        .where(eq(study.userId, userId))
+        .where(and(...conditions))
         .orderBy(desc(timeSession.startTime));
-
-      return result;
     }),
 
   // Planning endpoints

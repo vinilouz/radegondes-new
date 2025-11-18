@@ -1,66 +1,64 @@
-"use client"
-
 import * as React from "react"
 import * as AccordionPrimitive from "@radix-ui/react-accordion"
-import { ChevronDown } from "lucide-react"
+import { ChevronDownIcon } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 
-interface AccordionItem {
-  id: string
-  title: string | React.ReactNode
-  children: React.ReactNode
+function Accordion({
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Root>) {
+  return <AccordionPrimitive.Root data-slot="accordion" {...props} />
 }
 
-interface AccordionProps {
-  items: AccordionItem[]
-  className?: string
-  defaultValue?: string[]
-  maxHeight?: string
-}
-
-const Accordion = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Root>,
-  AccordionProps
->(({ items, className, defaultValue = [], maxHeight, ...props }, ref) => {
-  const [value, setValue] = React.useState<string[]>(defaultValue)
-
+function AccordionItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Item>) {
   return (
-    <div className={cn("space-y-2", className)} style={{ maxHeight, overflowY: 'auto' }}>
-      <AccordionPrimitive.Root
-        type="multiple"
-        value={value}
-        onValueChange={setValue}
+    <AccordionPrimitive.Item
+      data-slot="accordion-item"
+      className={cn("border-b last:border-b-0", className)}
+      {...props}
+    />
+  )
+}
+
+function AccordionTrigger({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
+  return (
+    <AccordionPrimitive.Header className="flex">
+      <AccordionPrimitive.Trigger
+        data-slot="accordion-trigger"
+        className={cn(
+          "focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
+          className
+        )}
         {...props}
       >
-        {items.map((item) => (
-          <AccordionPrimitive.Item key={item.id} value={item.id} className="border rounded-lg overflow-hidden">
-            <AccordionPrimitive.Header className="flex">
-              <AccordionPrimitive.Trigger
-                className={cn(
-                  "flex flex-1 items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors",
-                  "focus:outline-none"
-                )}
-              >
-                <div className="flex-1 pr-3">
-                  {typeof item.title === 'string' ? (
-                    <span className="font-medium">{item.title}</span>
-                  ) : (
-                    item.title
-                  )}
-                </div>
-                <ChevronDown className="h-4 w-4 transition-transform duration-200 shrink-0" />
-              </AccordionPrimitive.Trigger>
-            </AccordionPrimitive.Header>
-            <AccordionPrimitive.Content className="px-4 pb-4 border-t data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
-              {item.children}
-            </AccordionPrimitive.Content>
-          </AccordionPrimitive.Item>
-        ))}
-      </AccordionPrimitive.Root>
-    </div>
+        {children}
+        <ChevronDownIcon className="text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200" />
+      </AccordionPrimitive.Trigger>
+    </AccordionPrimitive.Header>
   )
-})
+}
 
-Accordion.displayName = "Accordion"
+function AccordionContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Content>) {
+  return (
+    <AccordionPrimitive.Content
+      data-slot="accordion-content"
+      className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden text-sm"
+      {...props}
+    >
+      <div className={cn("pt-0 pb-4", className)}>{children}</div>
+    </AccordionPrimitive.Content>
+  )
+}
 
-export { Accordion }
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }

@@ -1,34 +1,36 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { trpc } from '@/utils/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatTime, formatTimeRelative, formatHoursMinutes } from '@/lib/utils';
-import { BookOpen, Clock, Target, TrendingUp, Award, Flame, Calendar } from 'lucide-react';
+import { BookOpen, Clock, TrendingUp, Flame, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export const Route = createFileRoute('/_protected/estatisticas')({
   component: EstatisticasPage,
 });
 
 function EstatisticasPage() {
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState<number | 'all'>(30);
+  const queryDays = selectedPeriod === 'all' ? undefined : selectedPeriod;
 
   const statisticsQuery = useQuery({
     ...trpc.getStudyStatistics.queryOptions({ days: selectedPeriod === 'all' ? 9999 : selectedPeriod }),
   });
 
-  const statisticsMetricsQuery = useQuery({
-    ...trpc.getStatisticsMetrics.queryOptions(),
-  });
+  const sessionMetricsQuery = useQuery({ ...trpc.getStatisticsMetrics.queryOptions({ days: queryDays, groupBy: 'session' }) });
+  const topicMetricsQuery = useQuery({ ...trpc.getStatisticsMetrics.queryOptions({ days: queryDays, groupBy: 'topic' }) });
+  const disciplineMetricsQuery = useQuery({ ...trpc.getStatisticsMetrics.queryOptions({ days: queryDays, groupBy: 'discipline' }) });
 
   const todayDisciplinesQuery = useQuery({
     ...trpc.getTodayDisciplines.queryOptions(),
   });
 
   const stats = statisticsQuery.data;
-
   // Formatear dados para o gráfico
   const chartData = (() => {
     if (!stats?.dailyData) return [];
@@ -105,12 +107,36 @@ function EstatisticasPage() {
   return (
     <div className="container mx-auto p-6">
 
-      <Card className="border mb-8">
-        <CardHeader>
-          <CardTitle>Estatísticas de Métricas</CardTitle>
-        </CardHeader>
+      <Card className="border">
         <CardContent>
-          <pre className="text-xs overflow-auto max-h-64">{JSON.stringify(statisticsMetricsQuery.data?.filter(item => item.startTime), null, 2)}</pre>
+          <CardHeader>
+            <CardTitle>Estatísticas de Métricas (SESSION)</CardTitle>
+          </CardHeader>
+          <ScrollArea className="h-[600px]">
+            <pre>{JSON.stringify(sessionMetricsQuery.data, null, 2)}</pre>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      <Card className="border">
+        <CardContent>
+          <CardHeader>
+            <CardTitle>Estatísticas de Métricas (Topic)</CardTitle>
+          </CardHeader>
+          <ScrollArea className="h-[600px]">
+            <pre>{JSON.stringify(topicMetricsQuery.data, null, 2)}</pre>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      <Card className="border">
+        <CardContent>
+          <CardHeader>
+            <CardTitle>Estatísticas de Métricas (DISCIPLINE)</CardTitle>
+          </CardHeader>
+          <ScrollArea className="h-[600px]">
+            <pre>{JSON.stringify(disciplineMetricsQuery.data, null, 2)}</pre>
+          </ScrollArea>
         </CardContent>
       </Card>
 
@@ -273,7 +299,11 @@ function EstatisticasPage() {
                         {index + 1}
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{discipline.name}</p>
+                        <p
+                          className={`text-sm font-medium`}
+                        >
+                          {discipline.name}
+                        </p>
                         <p className="text-xs text-muted-foreground">{discipline.sessions} sessões</p>
                       </div>
                     </div>
@@ -384,6 +414,6 @@ function EstatisticasPage() {
         </Card>
       </div>
 
-    </div>
+    </div >
   );
 }
