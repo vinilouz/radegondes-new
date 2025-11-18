@@ -301,7 +301,14 @@ function PlanejamentoPage() {
                       <svg viewBox="0 0 200 200" className="w-full h-full" onMouseLeave={() => setHoveredDiscipline(null)}>
                         {studyTimeCalculation && (() => {
                           let currentAngle = -90;
-                          const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
+                          const colors = [
+                            '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16',
+                            '#f97316', '#14b8a6', '#a855f7', '#0ea5e9', '#22c55e', '#e11d48', '#f59e0b', '#8b5cf6',
+                            '#6366f1', '#84cc16', '#06b6d4', '#f43f5e', '#10b981', '#f97316', '#3b82f6', '#ec4899',
+                            '#a855f7', '#14b8a6', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#f97316', '#8b5cf6',
+                            '#6366f1', '#84cc16', '#06b6d4', '#f43f5e', '#10b981', '#f97316', '#3b82f6', '#ec4899',
+                            '#a855f7', '#14b8a6', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#f97316', '#8b5cf6'
+                          ];
 
                           return studyTimeCalculation.disciplines.map((discipline, index) => {
                             const percentage = discipline.precisePercentage;
@@ -352,7 +359,14 @@ function PlanejamentoPage() {
 
                     <div className="mt-6 space-y-2">
                       {studyTimeCalculation && studyTimeCalculation.disciplines.map((discipline, index) => {
-                        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
+                        const colors = [
+                          '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16',
+                          '#f97316', '#14b8a6', '#a855f7', '#0ea5e9', '#22c55e', '#e11d48', '#f59e0b', '#8b5cf6',
+                          '#6366f1', '#84cc16', '#06b6d4', '#f43f5e', '#10b981', '#f97316', '#3b82f6', '#ec4899',
+                          '#a855f7', '#14b8a6', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#f97316', '#8b5cf6',
+                          '#6366f1', '#84cc16', '#06b6d4', '#f43f5e', '#10b981', '#f97316', '#3b82f6', '#ec4899',
+                          '#a855f7', '#14b8a6', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#f97316', '#8b5cf6'
+                        ];
 
                         return (
                           <div key={discipline.id} className="flex items-center justify-between text-sm">

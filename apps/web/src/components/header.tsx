@@ -27,7 +27,7 @@ export default function Header() {
     <div className="sticky top-0 z-50 w-full py-6">
       <div className="container mx-auto">
         <header className="bg-card rounded-xl border border-border shadow-lg">
-          <div className="flex h-16 items-center justify-between px-3">
+          <div className="flex h-16 items-center justify-between px-6">
             {/* Logo e Branding */}
             <div className="flex items-center gap-3">
               <Link

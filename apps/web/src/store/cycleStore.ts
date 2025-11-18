@@ -1,5 +1,6 @@
 import { Store } from '@tanstack/react-store'
 import { trpcClient } from '@/utils/trpc'
+import { differenceInMilliseconds } from 'date-fns'
 
 const CYCLE_SESSION_KEY = 'cycle_session'
 
@@ -15,11 +16,13 @@ export type CycleState = {
   // Sessão de ciclo ativa
   activeCycleSession: CycleSessionData | null
   tick: number
+  sessionStartTime: number | null // timestamp de início com date-fns
 }
 
 export const cycleStore = new Store<CycleState>({
   activeCycleSession: null,
-  tick: 0
+  tick: 0,
+  sessionStartTime: null
 })
 
 // Tick a cada segundo para UI atualizar
@@ -35,14 +38,19 @@ export const cycleActions = {
     // Para qualquer sessão anterior
     await this.stopCycleSession()
 
-    // Salva no store
+    // Salva no store com timestamp de início usando date-fns
+    const startTime = Date.now()
     cycleStore.setState(s => ({
       ...s,
-      activeCycleSession: sessionData
+      activeCycleSession: sessionData,
+      sessionStartTime: startTime
     }))
 
     // Salva no localStorage
-    localStorage.setItem(CYCLE_SESSION_KEY, JSON.stringify(sessionData))
+    localStorage.setItem(CYCLE_SESSION_KEY, JSON.stringify({
+      ...sessionData,
+      sessionStartTime: startTime
+    }))
 
     console.log('Cycle session started:', sessionData)
   },
@@ -53,10 +61,11 @@ export const cycleActions = {
     if (!session) return
 
     try {
-      // Limpa store e localStorage
+      // Limpa store e localStorage incluindo sessionStartTime
       cycleStore.setState(s => ({
         ...s,
-        activeCycleSession: null
+        activeCycleSession: null,
+        sessionStartTime: null
       }))
 
       localStorage.removeItem(CYCLE_SESSION_KEY)
@@ -74,12 +83,16 @@ export const cycleActions = {
       const stored = localStorage.getItem(CYCLE_SESSION_KEY)
       if (!stored) return false
 
-      const session: CycleSessionData = JSON.parse(stored)
+      const sessionData = JSON.parse(stored)
 
-      // Restaura sessão ativa
+      // Extrai dados da sessão e timestamp
+      const { sessionStartTime, ...session } = sessionData
+
+      // Restaura sessão ativa com timestamp usando date-fns
       cycleStore.setState(s => ({
         ...s,
-        activeCycleSession: session
+        activeCycleSession: session,
+        sessionStartTime: sessionStartTime || null
       }))
 
       console.log('Cycle session restored:', session)
@@ -92,13 +105,13 @@ export const cycleActions = {
   }
 }
 
-// Selectors
+// Selectors com date-fns
 export const cycleSelectors = {
   getCurrentCycleSession: (state: CycleState) => state.activeCycleSession,
   getIsActive: (state: CycleState) => !!state.activeCycleSession,
   getSessionDuration: (state: CycleState) => {
-    if (!state.activeCycleSession) return 0
-    // Se precisar de duração, podemos adicionar um timestamp
-    return 0
+    if (!state.activeCycleSession || !state.sessionStartTime) return 0
+    // Calcula duração usando date-fns
+    return differenceInMilliseconds(new Date(), new Date(state.sessionStartTime))
   }
 }

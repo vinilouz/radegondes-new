@@ -981,19 +981,26 @@ export const appRouter = router({
 
       const conditions = [eq(study.userId, userId)];
 
+      // Nota: duration está em MILISSEGUNDOS (ms) no banco de dados
+
       if (input.days) {
-        const daysAgo = new Date();
-        daysAgo.setDate(daysAgo.getDate() - input.days);
-        conditions.push(gte(timeSession.startTime, daysAgo));
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - (input.days - 1));
+
+        conditions.push(gte(timeSession.startTime, startDate));
       }
 
       if (input.groupBy === 'discipline') {
+        // Agrupa por disciplina: totalDuration em MILISSEGUNDOS
         return await db
           .select({
             disciplineId: discipline.id,
             studyId: study.id,
             name: discipline.name,
-            totalDuration: sum(timeSession.duration).mapWith(Number),
+            totalDuration: sum(timeSession.duration).mapWith(Number), // ms
             sessionCount: count(timeSession.id),
             correct: sum(topic.correct).mapWith(Number),
             wrong: sum(topic.wrong).mapWith(Number),
@@ -1008,12 +1015,13 @@ export const appRouter = router({
       }
 
       if (input.groupBy === 'topic') {
+        // Agrupa por tópico: totalDuration em MILISSEGUNDOS
         return await db
           .select({
             topicId: topic.id,
             name: topic.name,
             disciplineName: discipline.name,
-            totalDuration: sum(timeSession.duration).mapWith(Number),
+            totalDuration: sum(timeSession.duration).mapWith(Number), // ms
             sessionCount: count(timeSession.id),
             correct: topic.correct,
             wrong: topic.wrong,
@@ -1027,13 +1035,13 @@ export const appRouter = router({
           .orderBy(desc(sum(timeSession.duration)));
       }
 
-      // Default: groupBy 'session'
+      // Default: groupBy 'session' - individual sessions com duration em MILISSEGUNDOS
       return await db
         .select({
           id: timeSession.id,
           startTime: timeSession.startTime,
           endTime: timeSession.endTime,
-          duration: timeSession.duration,
+          duration: timeSession.duration, // ms
           sessionType: timeSession.sessionType,
           topicId: timeSession.topicId,
           topicName: topic.name,

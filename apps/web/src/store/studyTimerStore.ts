@@ -1,6 +1,7 @@
 import { Store } from '@tanstack/react-store'
 import { trpcClient } from '@/utils/trpc'
 import { cycleActions } from './cycleStore'
+import { differenceInSeconds, differenceInMilliseconds } from 'date-fns'
 
 const SESSION_KEY = 'timer_session_v2'
 
@@ -71,8 +72,8 @@ export const timerActions = {
     const session = studyTimerStore.state.activeSession
     if (!session) return
     
-    // Calcula duração TOTAL
-    const duration = Math.round(Date.now() - session.startTime) + 99999
+    // Calcula duração TOTAL com date-fns
+    const duration = differenceInMilliseconds(new Date(), new Date(session.startTime)) + 99999
     
     console.log('Stopping session:', { sessionId: session.sessionId, duration })
     
@@ -118,8 +119,8 @@ export const timerActions = {
       
       const session: ActiveSession = JSON.parse(stored)
       
-      // Verifica se não é muito antiga (1 hora max)
-      const age = Date.now() - session.startTime
+      // Verifica se não é muito antiga (1 hora max) com date-fns
+      const age = differenceInMilliseconds(new Date(), new Date(session.startTime))
       if (age > 60 * 60 * 1000) {
         // Sessão muito antiga, finaliza ela
         const duration = Math.round(age)
@@ -167,7 +168,7 @@ export const timerActions = {
     const session = studyTimerStore.state.activeSession
     if (!session) return
     
-    const duration = Math.round(Date.now() - session.startTime)
+    const duration = differenceInMilliseconds(new Date(), new Date(session.startTime))
     
     try {
       await trpcClient.timer.heartbeat.mutate({
@@ -194,19 +195,19 @@ export const selectors = {
   getTopicTime: (topicId: string) => (state: TimeData): number => {
     const saved = state.savedTotals[topicId] || 0
     
-    // Se sessão ativa é deste tópico, adiciona tempo atual
+    // Se sessão ativa é deste tópico, adiciona tempo atual com date-fns
     if (state.activeSession?.topicId === topicId) {
-      const current = Date.now() - state.activeSession.startTime
+      const current = differenceInMilliseconds(new Date(), new Date(state.activeSession.startTime))
       return saved + current
     }
     
     return saved
   },
   
-  // Tempo da sessão ativa
+  // Tempo da sessão ativa com date-fns
   getCurrentSessionTime: (state: TimeData): number => {
     if (!state.activeSession) return 0
-    return Date.now() - state.activeSession.startTime
+    return differenceInMilliseconds(new Date(), new Date(state.activeSession.startTime))
   },
   
   getActiveSession: (state: TimeData) => state.activeSession
