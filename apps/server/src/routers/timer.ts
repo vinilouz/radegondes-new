@@ -48,7 +48,7 @@ export const timerRouter = router({
     .input(
       z.object({
         sessionId: z.string().uuid(),
-        duration: z.number().int().min(0).max(86400000), // Max 24h
+        duration: z.number().int().min(0).max(86400000), // Duração em MILISSEGUNDOS (ms) - Max 24h
       })
     )
     .mutation(async ({ input }) => {
@@ -57,7 +57,7 @@ export const timerRouter = router({
         .update(timeSession)
         .set({
           endTime: new Date(),
-          duration: input.duration, // Duration TOTAL, não incremental
+          duration: input.duration, // Duration TOTAL em MILISSEGUNDOS, não incremental
         })
         .where(eq(timeSession.id, input.sessionId))
         .returning();
@@ -75,7 +75,7 @@ export const timerRouter = router({
     .input(
       z.object({
         sessionId: z.string().uuid(),
-        deltaMs: z.number().int().min(0),
+        deltaMs: z.number().int().min(0), // Duração em MILISSEGUNDOS (ms)
       })
     )
     .mutation(async ({ input }) => {
@@ -84,7 +84,7 @@ export const timerRouter = router({
       await db
         .update(timeSession)
         .set({
-          duration: input.deltaMs, // Sobrescreve com valor total
+          duration: input.deltaMs, // Sobrescreve com valor total em MILISSEGUNDOS
         })
         .where(eq(timeSession.id, input.sessionId));
         
@@ -94,7 +94,7 @@ export const timerRouter = router({
   updateSessionDuration: protectedProcedure
     .input(z.object({
       sessionId: z.string().uuid(),
-      duration: z.number().int().min(0).max(86400000),
+      duration: z.number().int().min(0).max(86400000), // Duração em MILISSEGUNDOS (ms) - Max 24h
     }))
     .mutation(async ({ ctx, input }) => {
       const sessionCheck = await db

@@ -45,12 +45,12 @@ export const timeSession = pgTable("time_session", {
 		.references(() => topic.id, { onDelete: "cascade" }),
 	startTime: timestamp("start_time").notNull().defaultNow(),
 	endTime: timestamp("end_time"),
-	duration: integer("duration").notNull().default(0),
+	duration: integer("duration").notNull().default(0), // Duração em MILISSEGUNDOS (ms)
 	sessionType: text("session_type").notNull().default("study"),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
 	idxTopicId: index("idx_time_session_topic_id").on(table.topicId),
-	idxDuration: index("idx_time_session_duration").on(table.duration),
+	idxDuration: index("idx_time_session_duration").on(table.duration), // Índice em duração ms
 	idxTopicIdDuration: index("idx_time_session_topic_id_duration").on(table.topicId, table.duration),
 }));
 
