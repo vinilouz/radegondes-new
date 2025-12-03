@@ -36,7 +36,7 @@ export default function Header() {
               >
                 <img
                   src="/logo-h.png"
-                  alt="Radegondes Logo"
+                  alt="Meu Planejamento Logo"
                   className="h-9 w-auto max-w-full object-contain"
                 />
               </Link>
@@ -94,11 +94,11 @@ export default function Header() {
                           <header className="flex items-center gap-3 p-6 border-b bg-muted/30">
                             <img
                               src="/logo.png"
-                              alt="Radegondes Logo"
+                              alt="Meu Planejamento Logo"
                               className="h-10 w-auto"
                             />
                             <div>
-                              <h1 className="text-lg font-bold leading-none">Radegondes</h1>
+                              <h1 className="text-lg font-bold leading-none">Meu Planejamento</h1>
                               <small className="text-xs text-muted-foreground">Resumos | Concursos</small>
                             </div>
                           </header>
